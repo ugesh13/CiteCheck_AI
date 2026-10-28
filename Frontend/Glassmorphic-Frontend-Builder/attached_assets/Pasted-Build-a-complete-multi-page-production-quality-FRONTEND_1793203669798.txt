@@ -1,0 +1,122 @@
+Build a complete, multi-page, production-quality FRONTEND ONLY web app called "CiteCheck AI". Tagline: "Every claim in your content, checked against approved facts before it goes public." Sub-line: "Evidence-first brand governance. Catch brand inconsistencies. Verify claims. Keep humans in control." Context: Codex 48 hackathon, team TECHNOVA (Ugesh Kumar, Team Lead; Riya Sharma, Frontend; Shushma Singh, Presentation and Analyst), Inkloom AI brand-governance brief.
+
+A real backend (FastAPI + Pydantic + SQLite) ALREADY EXISTS. Do NOT build a backend or mock server. Build only the frontend that talks to it.
+
+Stack: Next.js (App Router) + TypeScript + Tailwind CSS + shadcn/ui (Radix) + framer-motion + lucide-react + Recharts.
+
+=====================================================
+PART 1 – MANDATORY TECHNICAL REQUIREMENTS (all must be visibly implemented)
+=====================================================
+
+A. Responsive & fluid layout architecture
+- Mobile-first Tailwind (sm:, md:, lg:, xl:), CSS Grid + Flexbox, rem and clamp()/vw fluid typography, and @container query wrappers on cards and panels so they adapt to their own width.
+- Desktop: floating glass "dock" navigation (icon dock, centered at the bottom or left edge, magnifies neighbouring icons on hover like the macOS dock) plus a slim top bar. Mobile: iOS-style bottom tab bar with a "More" sheet. Editor and findings panel are side by side on desktop and a segmented-control tab switcher on mobile. Tables collapse into stacked cards on mobile. Use a bento-grid layout on the dashboard and landing page.
+
+B. State management & server data synchronization
+- Zustand for UI/client state (current user/role, dock state, selected finding, editor selection, filters, theme, toasts).
+- @tanstack/react-query for ALL server data: useQuery with caching, staleTime and background refetching (refetchOnWindowFocus); useMutation with OPTIMISTIC updates and rollback on error for accept / edit / dismiss decisions, comments, approvals, and fact/guideline/term edits. Skeleton loaders for every loading state, QueryClientProvider at the root.
+- All logic lives in custom hooks (useFindings, useDrafts, useVersions, useBrandKit, useGapRadar, useAuditLog, useAuth, useReviewRun), separate from presentational layout components.
+
+B2 (API layer – IMPORTANT). Create /lib/api with a typed fetch client:
+- Base URL from process.env.NEXT_PUBLIC_API_BASE_URL. Attach the auth token (Bearer) from the login response, stored in the Zustand store (not localStorage-only secrets in code). On 401 redirect to /login. Parse FastAPI/Pydantic validation errors (422 with a `detail` array) and map them onto React Hook Form field errors. Normalise all errors into one ApiError type shown in toasts and error fallbacks.
+- Put ALL routes in a single file /lib/api/endpoints.ts so they can be edited in one place. Assume these REST routes and TypeScript types (Zod-typed responses, parsed at the boundary):
+  POST /auth/login → {token, user:{id,name,role}}   (roles: creator | brand_manager | reviewer)
+  GET /brand-kit → {guidelines[], facts[], terms[]}
+  POST|PATCH|DELETE /guidelines, /facts, /terms   (Fact: id like "FACT-07", text, source, review_date, allow_ai:boolean)
+  GET /drafts, POST /drafts, GET /drafts/{id}
+  GET /drafts/{id}/versions, POST /drafts/{id}/versions, GET /drafts/{id}/diff?from=&to=
+  POST /drafts/{id}/review → runs rules engine + LLM + verifier, returns {findings[], dropped[]}
+  GET /drafts/{id}/findings
+  POST /findings/{id}/decision → {action: "accept"|"edit"|"dismiss", reason?, edited_fix?}
+  GET|POST /drafts/{id}/comments
+  POST /drafts/{id}/approve, POST /drafts/{id}/request-changes
+  GET /gap-radar, GET /audit-log
+  Finding type: {id, draft_id, excerpt, start, end, type, severity, source: "rules"|"ai", source_ref_id, reason, suggested_fix, fix_needs_human:boolean, confidence, status}
+  The review response also returns `dropped[]` (candidate findings removed by the verifier) with {candidate, failed_gate (1-5), why}.
+- Add an env flag NEXT_PUBLIC_USE_FIXTURES=true that makes the client return small hard-coded fixture data, ONLY so the v0 preview renders when the backend is unreachable. Default is false. Keep fixtures in one folder (/lib/api/fixtures) and clearly comment that they are for preview only.
+
+C. Modular component system & UI kit
+- shadcn/ui + Radix + Tailwind. Reusable kit: GlassPanel, GlassButton, Badge (Claim, Unsupported, Unverified, High, Medium, Low, AI-assisted, Rule-based, Needs human review, Outdated fact), SourceChip, SeverityPill, Stepper, DataTable, Dialog, Sheet, Tabs/SegmentedControl, Tooltip, Toast, Skeleton, EmptyState, DiffViewer, FindingCard, HighlightedEditor, GateStepper, Dock.
+- Layout components (AppShell, Dock, Topbar, PageHeader) are separate from logic hooks. Fully keyboard accessible, visible focus rings, ARIA labels.
+
+D. Form handling & client-side schema validation
+- React Hook Form + Zod with zodResolver on EVERY form: login, add/edit guideline, add/edit approved fact (text, source, review date, allow_ai), add term (banned/preferred), new draft (title + text, non-empty, max length), dismiss-with-reason (required, min 10 chars), edit-fix, reviewer comment, request-changes note. Inline field errors, disabled-while-submitting buttons, success toasts. Schemas live in /lib/schemas.
+
+E. React Error Boundaries & graceful fallbacks
+- A reusable <ErrorBoundary> (react-error-boundary) wrapping every major route, the findings panel, Gap Radar chart, DiffViewer, HighlightedEditor, GateStepper and audit table. Friendly glass fallback with the error message and a "Try again" button that resets the boundary and refetches. Add error.tsx, loading.tsx and not-found.tsx. Add a "Simulate error" button under Settings > Developer to demonstrate it. Also show an "API unreachable" fallback state with a retry when the backend cannot be reached.
+
+=====================================================
+PART 2 – VISUAL DESIGN (must NOT resemble a cream/red editorial slide deck)
+=====================================================
+
+Glassmorphism, "Aurora Night" theme:
+- Deep midnight base (#0B1020 to #101735) with slow-drifting blurred aurora blobs in teal (#2DD4BF), violet (#8B5CF6), and warm amber (#FBBF24), plus a very subtle noise texture. A full light mode variant: pale frosted lavender-white (#F4F6FF) with the same accents.
+- Every surface is frosted glass: bg-white/[0.06] (dark) or bg-white/60 (light), backdrop-blur-2xl, 1px border white/10–20, layered soft shadows, rounded-3xl, a thin gradient top-edge highlight, and an inner glow.
+- Accents: teal = verified / accept / success, violet = AI-assisted, amber = warnings / needs human review / highlights, rose (#FB7185) = unsupported / high severity. Excerpt highlights in the editor look like soft glowing amber underlays (not yellow marker), high severity in rose.
+- Typography: Sora or Space Grotesk for headings (bold, tight tracking, NOT italic serif), Inter for body, Geist Mono / JetBrains Mono for small uppercase labels (EXCERPT, SOURCE, GATE 2). Logotype "CiteCheck" with a small animated gradient check-mark glyph and a "AI" capsule, with NO wavy underline.
+- Layout personality: bento grids, large rounded tiles, floating dock, a command palette (Cmd/Ctrl+K) for jumping between pages and drafts, soft gradient borders. Landing hero is centered with a live interactive "claim scanner" panel (a glowing scan beam sweeps a sentence, then excerpts light up and a finding card slides up), not a tilted paper card.
+
+iPhone-style smooth hover and motion:
+- framer-motion springs (stiffness ~300, damping ~24) and cubic-bezier(0.22, 1, 0.36, 1) everywhere.
+- Hover: scale 1.02–1.04, translateY -4px, shadow deepening, glass brightening, plus a cursor-following specular glare on glass tiles and a subtle 3D tilt (max 6deg). Press: scale 0.97 then spring release.
+- Dock icons magnify with neighbours; active nav uses a sliding pill (layoutId) like iOS segmented controls; page transitions are soft fade+slide with blur; lists stagger; dialogs and sheets spring up with a blurred backdrop; toasts drop in like iOS notifications; switches have springy knobs; magnetic CTA buttons; animated number counters; animated progress through the 5 gates. Respect prefers-reduced-motion.
+
+=====================================================
+PART 3 – APP CONTENT (functionality strictly from the project plan; examples are NEW)
+=====================================================
+
+Roles (login with seeded accounts; show demo-account chips on the login page that prefill the form; real auth goes to the backend):
+1. Creator – writes drafts, resolves findings, submits versions.
+2. Brand Manager – loads/edits the brand kit, controls what the AI may use, sees repeated mistakes (Gap Radar).
+3. Reviewer – comments, approves or requests changes, sees version diffs and the audit trail.
+Role-based navigation and permissions: only Brand Manager edits Brand Kit and sees Gap Radar actions; only Reviewer approves/requests changes; others are read-only with a tooltip explaining why.
+
+NEW EXAMPLES TO USE EVERYWHERE (landing demo, fixtures, empty-state hints, docs). Use a fictional fintech brand "Lumen Pay" with synthetic data only:
+- Example 1 draft "app-store-listing.md": "Lumen Pay is India's most trusted wallet and charges zero fees forever." Findings: "most trusted wallet" → CLAIM, HIGH, AI-ASSISTED, Unsupported, source FACT-07 "Approved claims: no superlatives without proof"; "zero fees forever" → CLAIM, HIGH, source FACT-03 "Pricing: fees reviewed quarterly, no lifetime promises". Suggested fix: "Lumen Pay is a wallet built for simple, everyday payments."
+- Example 2 draft "launch-email.md" (DRAFT v3): "Get cashback up to 15% on every payment this month." Finding: numbers/dates guarded → fix needs human; FACT-11 has an overdue REVIEW DATE so it shows an "Outdated fact" badge.
+- Example 3 draft "blog-security.md": a rules-engine finding for a banned phrase ("military-grade") and a terminology finding (use "UPI payment", not "UPI transaction"), plus one low-confidence AI finding showing "Needs human review".
+- Verifier demo: "The LLM cites FACT-42, which doesn't exist. Gate 2 drops it." shown as a dropped candidate.
+- Persona (illustrative): "Meera, a growth marketer at a mid-size fintech, publishing through 2 agencies and AI writing tools." Label it "Illustrative persona".
+
+PAGES / ROUTES
+
+1. Landing (/): top pill "CODEX 48 | BRAND GOVERNANCE | INKLOOM AI BRIEF". Centered hero with the logotype, tagline, three bullet chips ("Catch brand inconsistencies.", "Verify claims.", "Keep humans in control."), CTAs "Open the app" and "How it works", and the interactive claim-scanner demo (Example 1) with working ACCEPT / EDIT / DISMISS and the caption "Illustrative example. The human decides." Bento sections: (a) Problem "Brand inconsistency is a trust problem" with 3 tiles (Unsupported or outdated claims; Brand identity drift; Unclear review decisions) and an evidence tile citing Air Canada (2024), Moffatt v Air Canada, 2024 BCCRT 149, and ASCI Annual Complaints Report 2024–25 (ASCI said 98% of ads it scrutinised required some modification); (b) the 7-step workflow; (c) "What makes us different": Evidence-first (no source and real excerpt, no finding), Facts have review dates, Gap Radar; (d) Today vs With CiteCheck; (e) Team and sign-off with a glass "TECHNOVA – Submitted for review" seal. Footer "Codex 48 Idea Submission".
+
+2. Login (/login): RHF + Zod, role chips, note "Synthetic demo data only".
+
+3. Dashboard (/dashboard): bento tiles from API data only: drafts by status (Draft, In review, Changes requested, Approved), open findings, "Needs human review" queue, recent activity, quick actions. Animated counters. Never display invented performance numbers.
+
+4. Brand Kit (/brand-kit): segmented tabs Guidelines (~10), Approved Facts (~15; ID, text, source, REVIEW DATE, status Current / Review due / Outdated computed from the date), Terminology (~20, banned vs preferred). Brand Manager CRUD in validated dialogs, per-item "Allow AI to use" switch (optimistic). Others read-only. Label as synthetic.
+
+5. Drafts (/drafts): searchable, filterable list with title, version, status, findings count, updated time.
+
+6. New draft (/drafts/new): paste text OR drag-and-drop .md/.docx (.md/.txt parsed client-side; .docx is sent to the backend upload route if present, otherwise show a "Round 3" styled notice). Prominent glass banner: "Draft text goes to an external AI service. Only draft text and relevant clauses are sent." with a REQUIRED acknowledgement checkbox before "Run review".
+
+7. Draft Editor + Review (/drafts/[id]) – the core screen:
+- Left: HighlightedEditor with glowing excerpt underlays, synced selection with the findings panel (Zustand). Header: filename, "DRAFT vN", "N FINDINGS", "Run review" button that animates Draft text → Rules engine → LLM reviewer → Verifier → Verified findings.
+- Right: findings panel with filter chips (All / Rules / AI-assisted / Needs human review / Resolved). Each FindingCard follows the plan's anatomy, numbered 1–5: (1) EXACT EXCERPT; (2) TYPE AND SEVERITY (Claim, Banned phrase, Terminology, Tone, Readability, Accessibility; severity; AI-assisted or Rule-based); (3) REASON AND SOURCE with SourceChip (fact/guideline ID + name); (4) INTENT-PRESERVING FIX shown as before (struck through) and after, with the note "Numbers and names are guarded; changes go to a human."; (5) HUMAN DECISION: ACCEPT, EDIT (inline validated editor), DISMISS WITH REASON (dialog, reason required). Optimistic updates; every decision is written by the backend to the audit log. Claims outside approved facts show "Unverified". Low confidence shows "Needs human review". Keyboard hints: A accept, E edit, D dismiss.
+- Collapsible Verifier panel (GateStepper) built from the review response's findings and dropped[] arrays, visualising the FIVE GATES with animated pass/fail: 1 Strict JSON (issue, source ID, exact quote, fix); 2 The cited guideline or fact ID exists in the brand kit; 3 The quote really appears in the draft; 4 The fix does not change numbers, names or dates, or a human is asked; 5 Failures are dropped; low confidence shows as Needs human review. Dropped candidates are listed with the failed gate. Limit note: "This proves grounding, not real-world truth. Claims outside approved facts are labelled unverified."
+- Tabs: Versions (list + side-by-side DiffViewer), Comments (validated), Activity. Creator "Submit for review" creates a new version with a diff.
+
+8. Review queue (/review): submitted drafts; the Reviewer sees the version diff, findings with decisions and dismissal reasons, comments, and "Approve" / "Request changes" (returns to step 4). Approved version shows a lock icon: "Approved version is locked and logged."
+
+9. Guideline Gap Radar (/gap-radar): Brand Manager view. Rule: repeated dismissals of one rule flag it as unclear. Recharts radar/bar visual plus ranked table (Rule, Times flagged, Times dismissed, Dismissal reasons, Status "Possibly unclear"), a "Table view" toggle (simple-table fallback), helper text "Fix the rule, not the person", and an "Edit guideline" action linking to the Brand Kit. Data from GET /gap-radar.
+
+10. Audit Log (/audit): filterable table (who, role, action, target, timestamp) from GET /audit-log, refetching in the background; "Every decision is logged."; client-side CSV export.
+
+11. How it Works (/how-it-works): animated 7-step timeline: 1 Brand kit; 2 Draft; 3 Review; 4 Resolve; 5 Submit; 6 Decide; 7 Learn (use the plan's descriptions: manager loads guidelines, approved facts with source + review date, terminology; creator pastes or uploads with external-AI notice; rules engine and LLM propose issues and a verifier drops any without a valid source and real excerpt; creator sees reason, source and before/after fix then accepts, edits or dismisses with a reason; new version saved with a diff; reviewer comments, approves or requests changes; approved version locked and logged, dismissals feed the Gap Radar). Mark human checkpoints at steps 4 and 6. Show the pipeline (Draft text, Rules engine, LLM reviewer, Verifier, Verified findings), Creator / Brand Manager / Reviewer value cards, "AI suggests, humans decide", and a Scope tile: Round 2 core, Round 3 (.docx upload, Gap Radar, verifier hardening), Out of scope / Future scope (image and video review, SSO, CMS integrations, multi-language, Google Docs, Slack).
+
+12. Settings (/settings): theme toggle, reduced-motion toggle, "Responsible AI" panel (external-AI notice, synthetic data only, role-based access, audit log, human decision on every change), API base URL display (read-only), and Developer > "Simulate error".
+
+CONTENT INTEGRITY RULES
+- Do NOT invent statistics, customers, pricing, testimonials, or accuracy numbers. If targets are shown, state them exactly: "Targets (not results yet): at least 80% of planted issues caught, under 10% false positives, 100% of findings with a valid source and real excerpt, review time compared against a manual baseline. Tested on 15 drafts."
+- AI findings always carry an "AI-assisted" label. Keep "AI suggests, humans decide" visible. Mark examples "Illustrative example".
+- Do not build image/video review, SSO, CMS integrations or multi-language; show them only as Future scope.
+
+=====================================================
+PART 4 – QUALITY BAR
+=====================================================
+- Everything works against the real API: login by role, run review, accept/edit/dismiss, comments, new version, approve/request changes, brand-kit CRUD, Gap Radar and audit log refetching.
+- Loading skeletons, empty states, error states and toasts everywhere. Semantic HTML, ARIA, focus trapping in dialogs, AA contrast on glass surfaces.
+- File structure: /app, /components/ui, /components/layout, /components/features, /hooks, /lib/api (client, endpoints, fixtures), /lib/schemas, /store, /types. Include a .env.example with NEXT_PUBLIC_API_BASE_URL and NEXT_PUBLIC_USE_FIXTURES.
+Deliver the complete working frontend.

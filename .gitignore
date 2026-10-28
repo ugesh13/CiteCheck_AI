@@ -1,0 +1,31 @@
+# Environment files
+.env
+.env.local
+*.env
+*.env.*
+!.env.example
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Node / Frontend
+node_modules/
+.next/
+.replit
+.tsbuildinfo
+
+# Keep compiled frontend distribution for standalone deployment
+!frontend/Glassmorphic-Frontend-Builder/artifacts/citecheck-ai/dist/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

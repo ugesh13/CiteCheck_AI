@@ -1,0 +1,1 @@
+"""CiteCheck AI — Core Module."""

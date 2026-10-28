@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "CiteCheck AI"
+description = "An evidence-first brand governance frontend for creators, brand managers, and reviewers to check drafts against approved facts, resolve findings, and keep human decisions auditable."
+version = "1.0.0"
+id = "artifacts/citecheck-ai"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19850
+
+[services.development]
+run = "pnpm --filter @workspace/citecheck-ai run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/citecheck-ai", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/citecheck-ai/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19850"
+BASE_PATH = "/"
