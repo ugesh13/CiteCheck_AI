@@ -86,7 +86,7 @@ function AppShell({ children }: { children: ReactNode }) {
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/65 backdrop-blur-2xl">
       <div className="mx-auto flex h-[68px] max-w-[1440px] items-center justify-between px-4 sm:px-7">
         <Link href="/" className="flex items-center gap-2.5" data-testid="link-brand-home">
-          <img src="/favicon.svg" alt="CiteCheck Security Shield" className="h-9 w-9 rounded-xl shadow-md border border-violet-400/30 object-cover" />
+          <img src="/security-banner.png" alt="CiteCheck Security Shield" className="h-9 w-auto max-w-[130px] rounded-lg shadow-md border border-violet-400/30 object-contain bg-slate-950/40 px-1 py-0.5" />
           <span className="display text-lg font-bold tracking-tight">CiteCheck<span className="ml-1 rounded-md bg-violet-400/15 px-1.5 py-0.5 align-middle font-sans text-[9px] font-extrabold tracking-[.12em] text-violet-600 dark:text-violet-200">AI</span></span>
         </Link>
         <div className="hidden items-center gap-2 md:flex"><span className="mono rounded-full border border-border bg-card/50 px-3 py-1.5 text-[9px] uppercase tracking-widest text-muted-foreground">Lumen Pay · synthetic demo</span>
@@ -174,7 +174,11 @@ function LoginPage() {
   });
 
   return (
-    <div className="mx-auto grid max-w-5xl items-center gap-8 py-5 lg:grid-cols-[1fr_.85fr] lg:py-12">
+    <div className="mx-auto max-w-5xl py-5 lg:py-10">
+      <div className="mb-6 flex justify-center">
+        <img src="/security-banner.png" alt="CiteCheck AI Security Shield" className="h-16 w-auto max-w-full rounded-2xl border border-violet-400/30 shadow-xl object-contain bg-slate-950/70 px-4 py-2" />
+      </div>
+      <div className="grid items-center gap-8 lg:grid-cols-[1fr_.85fr]">
       <div>
         <div className="flex flex-wrap items-center gap-2">
           <Eyebrow>Welcome to your review room</Eyebrow>
@@ -242,8 +246,8 @@ function LoginPage() {
               <option value="reviewer">Reviewer</option>
             </select>
           </label>
-          <Button disabled={busy} type="submit" className="mt-1 w-full bg-teal-300 text-slate-950 font-bold hover:bg-teal-200" data-testid="button-login">
-            {busy ? 'Connecting…' : 'Continue'} <ArrowRight size={15} />
+          <Button disabled={busy} type="submit" className="mt-2 w-full bg-teal-400 text-slate-950 font-bold hover:bg-teal-300 py-3.5 text-sm shadow-md flex items-center justify-center gap-2 cursor-pointer" data-testid="button-login">
+            {busy ? "Connecting..." : "Continue"} <ArrowRight size={16} />
           </Button>
         </form>
 
@@ -252,6 +256,7 @@ function LoginPage() {
           The bearer token stays in memory for this session. For preview-only role switching, turn on VITE_USE_FIXTURES=true.
         </div>
       </Glass>
+      </div>
     </div>
   );
 }
