@@ -135,8 +135,6 @@ if os.path.isdir(frontend_dist) and os.path.exists(os.path.join(frontend_dist, "
     @app.api_route("/gap-radar", methods=["GET", "HEAD"], tags=["Frontend"])
     @app.api_route("/audit", methods=["GET", "HEAD"], tags=["Frontend"])
     @app.api_route("/login", methods=["GET", "HEAD"], tags=["Frontend"])
-    @app.api_route("/api/index.py", methods=["GET", "HEAD"], tags=["Frontend"])
-    @app.api_route("/api/index", methods=["GET", "HEAD"], tags=["Frontend"])
     def serve_frontend():
         """Serve the compiled Glassmorphic Frontend application."""
         html_file = os.path.join(frontend_dist, "index.html")
@@ -176,8 +174,6 @@ if os.path.isdir(frontend_dist) and os.path.exists(os.path.join(frontend_dist, "
         }
 else:
     @app.api_route("/", methods=["GET", "HEAD"], tags=["Root"])
-    @app.api_route("/api/index.py", methods=["GET", "HEAD"], tags=["Root"])
-    @app.api_route("/api/index", methods=["GET", "HEAD"], tags=["Root"])
     def root():
         """Root endpoint — confirms the API is live."""
         return {
