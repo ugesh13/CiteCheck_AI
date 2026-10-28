@@ -1,8 +1,26 @@
 {
+  "outputDirectory": "Frontend/Glassmorphic-Frontend-Builder/artifacts/citecheck-ai/dist/public",
+  "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/api/(.*)",
       "destination": "/api/index.py"
+    },
+    {
+      "source": "/docs",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/openapi.json",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/healthz",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/((?!api/|docs|openapi.json|healthz).*)",
+      "destination": "/index.html"
     }
   ]
 }

@@ -203,8 +203,8 @@ def get_brand_kit():
     return DEFAULT_BRAND_KIT
 
 
-@router.post("/api/{kind}")
-@router.post("/api/v1/{kind}")
+@router.post("/api/{kind:regex(facts|rules|guidelines|terms)}")
+@router.post("/api/v1/{kind:regex(facts|rules|guidelines|terms)}")
 def create_kit_item(kind: str, payload: Dict[str, Any]):
     if kind not in DEFAULT_BRAND_KIT:
         raise HTTPException(status_code=400, detail=f"Invalid brand kit category '{kind}'")
@@ -215,9 +215,9 @@ def create_kit_item(kind: str, payload: Dict[str, Any]):
     return item
 
 
-@router.patch("/api/{kind}/{item_id}")
-@router.post("/api/{kind}/{item_id}")
-@router.patch("/api/v1/{kind}/{item_id}")
+@router.patch("/api/{kind:regex(facts|rules|guidelines|terms)}/{item_id}")
+@router.post("/api/{kind:regex(facts|rules|guidelines|terms)}/{item_id}")
+@router.patch("/api/v1/{kind:regex(facts|rules|guidelines|terms)}/{item_id}")
 def update_kit_item(kind: str, item_id: str, payload: Dict[str, Any]):
     if kind not in DEFAULT_BRAND_KIT:
         raise HTTPException(status_code=400, detail="Invalid brand kit category")
@@ -229,8 +229,8 @@ def update_kit_item(kind: str, item_id: str, payload: Dict[str, Any]):
     return payload
 
 
-@router.delete("/api/{kind}/{item_id}")
-@router.delete("/api/v1/{kind}/{item_id}")
+@router.delete("/api/{kind:regex(facts|rules|guidelines|terms)}/{item_id}")
+@router.delete("/api/v1/{kind:regex(facts|rules|guidelines|terms)}/{item_id}")
 def delete_kit_item(kind: str, item_id: str):
     if kind in DEFAULT_BRAND_KIT:
         DEFAULT_BRAND_KIT[kind] = [x for x in DEFAULT_BRAND_KIT[kind] if str(x.get("id")) != str(item_id)]

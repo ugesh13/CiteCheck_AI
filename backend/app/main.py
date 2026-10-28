@@ -124,17 +124,28 @@ if os.path.isdir(frontend_dist) and os.path.exists(os.path.join(frontend_dist, "
             return FileResponse(filepath)
         return FileResponse(os.path.join(frontend_dist, "favicon.svg"))
 
-    @app.get("/", tags=["Frontend"])
-    @app.get("/dashboard", tags=["Frontend"])
-    @app.get("/drafts", tags=["Frontend"])
-    @app.get("/brand-kit", tags=["Frontend"])
-    @app.get("/review", tags=["Frontend"])
-    @app.get("/gap-radar", tags=["Frontend"])
-    @app.get("/audit", tags=["Frontend"])
-    @app.get("/login", tags=["Frontend"])
+    @app.api_route("/", methods=["GET", "HEAD"], tags=["Frontend"])
+    @app.api_route("/dashboard", methods=["GET", "HEAD"], tags=["Frontend"])
+    @app.api_route("/drafts", methods=["GET", "HEAD"], tags=["Frontend"])
+    @app.api_route("/brand-kit", methods=["GET", "HEAD"], tags=["Frontend"])
+    @app.api_route("/review", methods=["GET", "HEAD"], tags=["Frontend"])
+    @app.api_route("/gap-radar", methods=["GET", "HEAD"], tags=["Frontend"])
+    @app.api_route("/audit", methods=["GET", "HEAD"], tags=["Frontend"])
+    @app.api_route("/login", methods=["GET", "HEAD"], tags=["Frontend"])
+    @app.api_route("/api/index.py", methods=["GET", "HEAD"], tags=["Frontend"])
+    @app.api_route("/api/index", methods=["GET", "HEAD"], tags=["Frontend"])
     def serve_frontend():
         """Serve the compiled Glassmorphic Frontend application."""
-        return FileResponse(os.path.join(frontend_dist, "index.html"))
+        html_file = os.path.join(frontend_dist, "index.html")
+        if os.path.exists(html_file):
+            return FileResponse(html_file)
+        return {
+            "service": settings.app_name,
+            "version": "1.0.0",
+            "status": "operational",
+            "docs": "/docs",
+            "health": "/healthz",
+        }
 
     @app.get("/api-info", tags=["Root"])
     def root():
@@ -148,7 +159,9 @@ if os.path.isdir(frontend_dist) and os.path.exists(os.path.join(frontend_dist, "
             "auth_enabled": True,
         }
 else:
-    @app.get("/", tags=["Root"])
+    @app.api_route("/", methods=["GET", "HEAD"], tags=["Root"])
+    @app.api_route("/api/index.py", methods=["GET", "HEAD"], tags=["Root"])
+    @app.api_route("/api/index", methods=["GET", "HEAD"], tags=["Root"])
     def root():
         """Root endpoint — confirms the API is live."""
         return {
