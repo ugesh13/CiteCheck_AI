@@ -156,3 +156,4 @@ npm run dev
 * **Ugesh Kumar** (*Team Lead & Full-Stack Developer*) — FastAPI Architecture, SQLModel Schemas, 5-Gate Verifier Engine
 * **Riya Sharma** (*Frontend Developer*) — React Dashboard, Highlighted Draft Editor, Findings Panel
 * **Shushma Singh** (*Data Analyst & QA Lead*) — Brand Kit Synthetic Seeding, 15-Draft Test Suite, API Docs
+

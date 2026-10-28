@@ -91,20 +91,17 @@ app.include_router(brand_kits.router)
 import os
 from starlette.staticfiles import StaticFiles
 
-# Resolve path to built frontend dist/public
-frontend_dist = os.path.abspath(
-    os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "..",
-        "frontend",
-        "Glassmorphic-Frontend-Builder",
-        "artifacts",
-        "citecheck-ai",
-        "dist",
-        "public",
-    )
-)
+# Resolve path to built frontend dist/public (supporting both Frontend and frontend for Linux/Vercel)
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+dist_candidates = [
+    os.path.join(repo_root, "Frontend", "Glassmorphic-Frontend-Builder", "artifacts", "citecheck-ai", "dist", "public"),
+    os.path.join(repo_root, "frontend", "Glassmorphic-Frontend-Builder", "artifacts", "citecheck-ai", "dist", "public"),
+]
+frontend_dist = dist_candidates[0]
+for cand in dist_candidates:
+    if os.path.isdir(cand) and os.path.exists(os.path.join(cand, "index.html")):
+        frontend_dist = cand
+        break
 
 if os.path.isdir(frontend_dist) and os.path.exists(os.path.join(frontend_dist, "index.html")):
     # Mount static assets (js, css, images)
