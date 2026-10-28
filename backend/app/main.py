@@ -91,11 +91,13 @@ app.include_router(brand_kits.router)
 import os
 from starlette.staticfiles import StaticFiles
 
-# Resolve path to built frontend dist/public (supporting both Frontend and frontend for Linux/Vercel)
+# Resolve path to built frontend (checking root public, and frontend dist directories)
 repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 dist_candidates = [
+    os.path.join(repo_root, "public"),
     os.path.join(repo_root, "Frontend", "Glassmorphic-Frontend-Builder", "artifacts", "citecheck-ai", "dist", "public"),
     os.path.join(repo_root, "frontend", "Glassmorphic-Frontend-Builder", "artifacts", "citecheck-ai", "dist", "public"),
+    os.path.join(os.getcwd(), "public"),
 ]
 frontend_dist = dist_candidates[0]
 for cand in dist_candidates:
@@ -125,6 +127,7 @@ if os.path.isdir(frontend_dist) and os.path.exists(os.path.join(frontend_dist, "
         return FileResponse(os.path.join(frontend_dist, "favicon.svg"))
 
     @app.api_route("/", methods=["GET", "HEAD"], tags=["Frontend"])
+    @app.api_route("/index.html", methods=["GET", "HEAD"], tags=["Frontend"])
     @app.api_route("/dashboard", methods=["GET", "HEAD"], tags=["Frontend"])
     @app.api_route("/drafts", methods=["GET", "HEAD"], tags=["Frontend"])
     @app.api_route("/brand-kit", methods=["GET", "HEAD"], tags=["Frontend"])
@@ -146,6 +149,19 @@ if os.path.isdir(frontend_dist) and os.path.exists(os.path.join(frontend_dist, "
             "docs": "/docs",
             "health": "/healthz",
         }
+
+    @app.api_route("/{full_path:path}", methods=["GET", "HEAD"], tags=["Frontend"])
+    def catchall_frontend(full_path: str):
+        """Fallback handler for frontend client routes and static assets."""
+        if full_path.startswith("api/") or full_path in ("docs", "openapi.json", "healthz"):
+            raise HTTPException(status_code=404, detail="Not Found")
+        filepath = os.path.join(frontend_dist, full_path)
+        if os.path.exists(filepath) and os.path.isfile(filepath):
+            return FileResponse(filepath)
+        html_file = os.path.join(frontend_dist, "index.html")
+        if os.path.exists(html_file):
+            return FileResponse(html_file)
+        raise HTTPException(status_code=404, detail="Not Found")
 
     @app.get("/api-info", tags=["Root"])
     def root():
