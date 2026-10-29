@@ -43,6 +43,26 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+# ── Vercel Serverless Path Restoration Middleware ──────────────────────────
+@app.middleware("http")
+async def vercel_subpath_middleware(request: Request, call_next):
+    """
+    On Vercel, requests to /api/(.*) are rewritten to /api/index.py?path=$1.
+    This middleware restores the original requested path into request.scope['path']
+    so FastAPI routers (/api/brand-kit, /api/drafts, /api/gap-radar, etc.) match directly.
+    """
+    sub = request.query_params.get("path") or request.query_params.get("__subpath")
+    if sub and sub not in ("$1", ":match*", ":path*"):
+        clean_sub = sub.strip().lstrip("/")
+        if clean_sub in ("docs", "openapi.json", "healthz"):
+            request.scope["path"] = f"/{clean_sub}"
+        else:
+            request.scope["path"] = f"/api/{clean_sub}"
+    elif request.scope.get("path") in ("/api/index.py", "/api/index"):
+        request.scope["path"] = "/api"
+    return await call_next(request)
+
+
 # ── 1. API Rate Limiting Middleware ────────────────────────────────────────
 app.add_middleware(RateLimitMiddleware, requests_per_minute=120)
 
@@ -161,7 +181,7 @@ if os.path.isdir(frontend_dist) and os.path.exists(os.path.join(frontend_dist, "
     @app.api_route("/api/index.py", methods=["GET", "HEAD"], tags=["Root"])
     @app.api_route("/api/index", methods=["GET", "HEAD"], tags=["Root"])
     @app.get("/api-info", tags=["Root"])
-    def root(request: Request):
+    def root(request: Optional[Request] = None):
         """Root API info endpoint."""
         return {
             "service": settings.app_name,
@@ -170,9 +190,6 @@ if os.path.isdir(frontend_dist) and os.path.exists(os.path.join(frontend_dist, "
             "docs": "/docs",
             "health": "/healthz",
             "auth_enabled": True,
-            "called_path": request.url.path,
-            "headers": dict(request.headers),
-            "query": dict(request.query_params),
         }
 
     @app.api_route("/{full_path:path}", methods=["GET", "HEAD"], tags=["Frontend"])
@@ -201,7 +218,7 @@ else:
     @app.api_route("/api", methods=["GET", "HEAD"], tags=["Root"])
     @app.api_route("/api/index.py", methods=["GET", "HEAD"], tags=["Root"])
     @app.api_route("/api/index", methods=["GET", "HEAD"], tags=["Root"])
-    def root(request: Request):
+    def root(request: Optional[Request] = None):
         """Root endpoint — confirms the API is live."""
         return {
             "service": settings.app_name,
@@ -210,7 +227,4 @@ else:
             "docs": "/docs",
             "health": "/healthz",
             "auth_enabled": True,
-            "called_path": request.url.path,
-            "headers": dict(request.headers),
-            "query": dict(request.query_params),
         }

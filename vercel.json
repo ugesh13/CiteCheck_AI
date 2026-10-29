@@ -3,23 +3,23 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/index.py"
+      "destination": "/api/index.py?path=$1"
     },
     {
       "source": "/api",
-      "destination": "/api/index.py"
+      "destination": "/api/index.py?path="
     },
     {
       "source": "/docs",
-      "destination": "/api/index.py"
+      "destination": "/api/index.py?path=docs"
     },
     {
       "source": "/openapi.json",
-      "destination": "/api/index.py"
+      "destination": "/api/index.py?path=openapi.json"
     },
     {
       "source": "/healthz",
-      "destination": "/api/index.py"
+      "destination": "/api/index.py?path=healthz"
     },
     {
       "source": "/((?!.*\\.).*)",
