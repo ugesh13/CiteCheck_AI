@@ -7,6 +7,8 @@ Protected by Supabase JWT verification.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.database import get_supabase_client
@@ -182,7 +184,7 @@ async def create_decision(
                 sb.table("drafts").update({
                     "current_content": new_content,
                     "current_version": new_version,
-                    "updated_at": "now()",
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
                 }).eq("id", finding["draft_id"]).execute()
 
                 sb.table("draft_versions").insert({

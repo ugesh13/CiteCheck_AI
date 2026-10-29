@@ -205,15 +205,20 @@ def get_brand_kit():
     return DEFAULT_BRAND_KIT
 
 
+def _resolve_kit_kind(kind: str) -> str:
+    return "guidelines" if kind in ("rules", "guidelines") else kind
+
+
 @router.post("/api/{kind:regex(facts|rules|guidelines|terms)}")
 @router.post("/api/v1/{kind:regex(facts|rules|guidelines|terms)}")
 def create_kit_item(kind: str, payload: Dict[str, Any]):
-    if kind not in DEFAULT_BRAND_KIT:
+    resolved_kind = _resolve_kit_kind(kind)
+    if resolved_kind not in DEFAULT_BRAND_KIT:
         raise HTTPException(status_code=400, detail=f"Invalid brand kit category '{kind}'")
     item = dict(payload)
     if "id" not in item:
-        item["id"] = f"{kind[:4].upper()}-{int(datetime.now().timestamp())}"
-    DEFAULT_BRAND_KIT[kind].insert(0, item)
+        item["id"] = f"{resolved_kind[:4].upper()}-{int(datetime.now().timestamp())}"
+    DEFAULT_BRAND_KIT[resolved_kind].insert(0, item)
     return item
 
 
@@ -221,9 +226,10 @@ def create_kit_item(kind: str, payload: Dict[str, Any]):
 @router.post("/api/{kind:regex(facts|rules|guidelines|terms)}/{item_id}")
 @router.patch("/api/v1/{kind:regex(facts|rules|guidelines|terms)}/{item_id}")
 def update_kit_item(kind: str, item_id: str, payload: Dict[str, Any]):
-    if kind not in DEFAULT_BRAND_KIT:
+    resolved_kind = _resolve_kit_kind(kind)
+    if resolved_kind not in DEFAULT_BRAND_KIT:
         raise HTTPException(status_code=400, detail="Invalid brand kit category")
-    items = DEFAULT_BRAND_KIT[kind]
+    items = DEFAULT_BRAND_KIT[resolved_kind]
     for i, item in enumerate(items):
         if str(item.get("id")) == str(item_id):
             items[i].update(payload)
@@ -234,8 +240,9 @@ def update_kit_item(kind: str, item_id: str, payload: Dict[str, Any]):
 @router.delete("/api/{kind:regex(facts|rules|guidelines|terms)}/{item_id}")
 @router.delete("/api/v1/{kind:regex(facts|rules|guidelines|terms)}/{item_id}")
 def delete_kit_item(kind: str, item_id: str):
-    if kind in DEFAULT_BRAND_KIT:
-        DEFAULT_BRAND_KIT[kind] = [x for x in DEFAULT_BRAND_KIT[kind] if str(x.get("id")) != str(item_id)]
+    resolved_kind = _resolve_kit_kind(kind)
+    if resolved_kind in DEFAULT_BRAND_KIT:
+        DEFAULT_BRAND_KIT[resolved_kind] = [x for x in DEFAULT_BRAND_KIT[resolved_kind] if str(x.get("id")) != str(item_id)]
     return {"success": True}
 
 

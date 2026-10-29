@@ -168,14 +168,6 @@ if os.path.isdir(frontend_dist) and os.path.exists(os.path.join(frontend_dist, "
             "health": "/healthz",
         }
 
-    @app.get("/api/debug-scope", tags=["Debug"])
-    def debug_scope(request: Request):
-        return {
-            "url_path": request.url.path,
-            "scope_path": request.scope.get("path"),
-            "headers": dict(request.headers),
-            "query_params": dict(request.query_params),
-        }
 
     @app.api_route("/api", methods=["GET", "HEAD"], tags=["Root"])
     @app.api_route("/api/index.py", methods=["GET", "HEAD"], tags=["Root"])
@@ -205,14 +197,6 @@ if os.path.isdir(frontend_dist) and os.path.exists(os.path.join(frontend_dist, "
             return FileResponse(html_file)
         raise HTTPException(status_code=404, detail="Not Found")
 else:
-    @app.get("/api/debug-scope", tags=["Debug"])
-    def debug_scope(request: Request):
-        return {
-            "url_path": request.url.path,
-            "scope_path": request.scope.get("path"),
-            "headers": dict(request.headers),
-            "query_params": dict(request.query_params),
-        }
 
     @app.api_route("/", methods=["GET", "HEAD"], tags=["Root"])
     @app.api_route("/api", methods=["GET", "HEAD"], tags=["Root"])
