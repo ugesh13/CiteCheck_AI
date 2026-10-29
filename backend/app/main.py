@@ -7,7 +7,7 @@ CORS, and health/root endpoints.
 
 from __future__ import annotations
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -148,6 +148,21 @@ if os.path.isdir(frontend_dist) and os.path.exists(os.path.join(frontend_dist, "
             "health": "/healthz",
         }
 
+    @app.api_route("/api", methods=["GET", "HEAD"], tags=["Root"])
+    @app.api_route("/api/index.py", methods=["GET", "HEAD"], tags=["Root"])
+    @app.api_route("/api/index", methods=["GET", "HEAD"], tags=["Root"])
+    @app.get("/api-info", tags=["Root"])
+    def root():
+        """Root API info endpoint."""
+        return {
+            "service": settings.app_name,
+            "version": "1.0.0",
+            "status": "operational",
+            "docs": "/docs",
+            "health": "/healthz",
+            "auth_enabled": True,
+        }
+
     @app.api_route("/{full_path:path}", methods=["GET", "HEAD"], tags=["Frontend"])
     def catchall_frontend(full_path: str):
         """Fallback handler for frontend client routes and static assets."""
@@ -160,20 +175,11 @@ if os.path.isdir(frontend_dist) and os.path.exists(os.path.join(frontend_dist, "
         if os.path.exists(html_file):
             return FileResponse(html_file)
         raise HTTPException(status_code=404, detail="Not Found")
-
-    @app.get("/api-info", tags=["Root"])
-    def root():
-        """Root API info endpoint."""
-        return {
-            "service": settings.app_name,
-            "version": "1.0.0",
-            "status": "operational",
-            "docs": "/docs",
-            "health": "/healthz",
-            "auth_enabled": True,
-        }
 else:
     @app.api_route("/", methods=["GET", "HEAD"], tags=["Root"])
+    @app.api_route("/api", methods=["GET", "HEAD"], tags=["Root"])
+    @app.api_route("/api/index.py", methods=["GET", "HEAD"], tags=["Root"])
+    @app.api_route("/api/index", methods=["GET", "HEAD"], tags=["Root"])
     def root():
         """Root endpoint — confirms the API is live."""
         return {

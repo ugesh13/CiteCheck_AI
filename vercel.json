@@ -2,20 +2,24 @@
   "cleanUrls": true,
   "rewrites": [
     {
+      "source": "/api",
+      "destination": "/api/index.py?__vercel_api_path=/api"
+    },
+    {
       "source": "/api/(.*)",
-      "destination": "/api/index.py"
+      "destination": "/api/index.py?__vercel_api_path=/api/$1"
     },
     {
       "source": "/docs",
-      "destination": "/api/index.py"
+      "destination": "/api/index.py?__vercel_api_path=/docs"
     },
     {
       "source": "/openapi.json",
-      "destination": "/api/index.py"
+      "destination": "/api/index.py?__vercel_api_path=/openapi.json"
     },
     {
       "source": "/healthz",
-      "destination": "/api/index.py"
+      "destination": "/api/index.py?__vercel_api_path=/healthz"
     },
     {
       "source": "/((?!.*\\.).*)",
