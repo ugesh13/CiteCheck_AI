@@ -2,24 +2,24 @@
   "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/api",
-      "destination": "/api/index.py?__subpath="
+      "source": "/api/(.*)",
+      "destination": "/api/index.py"
     },
     {
-      "source": "/api/(.*)",
-      "destination": "/api/index.py?__subpath=$1"
+      "source": "/api",
+      "destination": "/api/index.py"
     },
     {
       "source": "/docs",
-      "destination": "/api/index.py?__subpath=docs"
+      "destination": "/api/index.py"
     },
     {
       "source": "/openapi.json",
-      "destination": "/api/index.py?__subpath=openapi.json"
+      "destination": "/api/index.py"
     },
     {
       "source": "/healthz",
-      "destination": "/api/index.py?__subpath=healthz"
+      "destination": "/api/index.py"
     },
     {
       "source": "/((?!.*\\.).*)",
