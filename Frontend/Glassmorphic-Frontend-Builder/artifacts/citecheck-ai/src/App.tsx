@@ -65,7 +65,8 @@ function AppShell({ children }: { children: ReactNode }) {
   const logout = useSession((s) => s.logout);
   const theme = useSession((s) => s.theme);
   const setTheme = useSession((s) => s.setTheme);
-  const { data: commandDrafts } = useDrafts();
+  const { data: commandDraftsRaw } = useDrafts();
+  const commandDrafts = Array.isArray(commandDraftsRaw) ? commandDraftsRaw : [];
   const [palette, setPalette] = useState(false);
   const [more, setMore] = useState(false);
   const [search, setSearch] = useState('');
@@ -263,7 +264,7 @@ function LoginPage() {
 
       function Dashboard() {
   const {data, isLoading, isError, error, refetch} = useDrafts();
-      const draftsList = data || [];
+  const draftsList = Array.isArray(data) ? data : [];
   const openFindingCount = draftsList.reduce((sum, item) => sum + (item.findings_count || 0), 0);
   const statusCount = (status: string) => draftsList.filter((d) => d.status.toLowerCase() === status.toLowerCase()).length;
   const user = useSession((s) => s.user);
@@ -327,7 +328,7 @@ function LoginPage() {
   const {data, isLoading, isError, error, refetch} = useDrafts();
         const [search, setSearch] = useState('');
         const [filter, setFilter] = useState('All');
-  const draftsList = useMemo(() => (data || []).filter((draft) => draft.title.toLowerCase().includes(search.toLowerCase()) && (filter === 'All' || draft.status === filter)), [data, search, filter]);
+  const draftsList = useMemo(() => (Array.isArray(data) ? data : []).filter((draft) => draft.title.toLowerCase().includes(search.toLowerCase()) && (filter === 'All' || draft.status === filter)), [data, search, filter]);
         return <div className="page-enter"><PageHead eyebrow="Content workspace" title="Drafts" sub="Search the work in progress. Every version can be traced back to a decision." action={<Link href="/drafts/new" className="inline-flex items-center gap-2 rounded-xl bg-teal-300 px-4 py-3 text-sm font-extrabold text-slate-950 transition hover:-translate-y-1"><Plus size={15} />New draft</Link>} />
           <Glass className="mb-4 flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between"><label className="flex h-10 min-w-0 items-center gap-2 rounded-xl border border-border bg-background/45 px-3 sm:w-80"><Search size={15} className="text-muted-foreground" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search drafts…" className="min-w-0 flex-1 bg-transparent text-xs outline-none" data-testid="input-draft-search" /></label><div className="flex gap-1 overflow-x-auto">{['All', 'Draft', 'In review', 'Changes requested', 'Approved'].map((s) => <button key={s} onClick={() => setFilter(s)} className={`whitespace-nowrap rounded-lg px-3 py-2 text-[10px] font-bold ${filter === s ? 'bg-teal-300 text-slate-950' : 'text-muted-foreground hover:bg-white/5'}`}>{s}</button>)}</div></Glass>
           {isLoading ? <LoadingCards /> : isError ? <ApiFailure error={error} retry={() => refetch()} /> : draftsList.length ? <div className="grid gap-3">{draftsList.map((draft) => <DraftRow key={draft.id} draft={draft} />)}</div> : <Glass className="p-9 text-center"><FileText className="mx-auto text-violet-500" size={24} /><h2 className="display mt-3 text-xl font-bold">{search ? 'No matching drafts' : 'A blank page, with a source.'}</h2><p className="mt-2 text-sm text-muted-foreground">Start with a title and the words you want checked.</p><Link href="/drafts/new" className="mt-5 inline-flex rounded-xl bg-teal-300 px-4 py-2.5 text-sm font-bold text-slate-950">Create a draft</Link></Glass>}
@@ -458,13 +459,14 @@ function LoginPage() {
 }
 
           function ReviewQueuePage() {
-  const {data: draftsList, isLoading, isError, error, refetch } = useDrafts();
+  const {data: draftsListRaw, isLoading, isError, error, refetch } = useDrafts();
+  const draftsList = Array.isArray(draftsListRaw) ? draftsListRaw : [];
   const user = useSession((s) => s.user);
           const [selected, setSelected] = useState<string | null>(null);
           const [note, setNote] = useState('');
           const [requestOpen, setRequestOpen] = useState(false);
           const client = useQueryClient();
-  const pending = (draftsList || []).filter((draft) => draft.status.toLowerCase() === 'in review');
+  const pending = draftsList.filter((draft) => draft.status.toLowerCase() === 'in review');
   useEffect(() => { if (!selected && pending.length) setSelected(pending[0].id); }, [selected, pending]);
   const draft = pending.find((item) => item.id === selected);
           const reviewDecision = useReviewDecision(selected || '');

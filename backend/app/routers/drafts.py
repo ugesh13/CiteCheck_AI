@@ -51,6 +51,11 @@ async def create_draft(
         )
 
     draft_row = draft_result.data[0]
+    if not isinstance(draft_row, dict):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create draft.",
+        )
 
     # 2. Insert initial version
     version_payload = {
@@ -92,6 +97,11 @@ async def get_draft(
         )
 
     draft_row = draft_result.data[0]
+    if not isinstance(draft_row, dict):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Draft '{draft_id}' not found.",
+        )
 
     # Fetch latest findings for this draft's current version
     findings_result = (
@@ -103,7 +113,11 @@ async def get_draft(
         .execute()
     )
 
-    findings = [FindingResponse(**f) for f in (findings_result.data or [])]
+    findings = [
+        FindingResponse(**f)
+        for f in (findings_result.data or [])
+        if isinstance(f, dict)
+    ]
 
     return DraftDetailResponse(
         draft=DraftResponse(**draft_row),

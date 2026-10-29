@@ -158,7 +158,9 @@ def login(body: LoginRequest):
 
 # ─── 2. Brand Kit & Guidelines ──────────────────────────────────────────────
 @router.get("/api/brand-kit")
+@router.get("/api/brand-kit/")
 @router.get("/api/v1/brand-kit")
+@router.get("/api/v1/brand-kit/")
 def get_brand_kit():
     """Retrieve full brand kit containing guidelines, approved facts, and terminology."""
     try:
@@ -239,7 +241,9 @@ def delete_kit_item(kind: str, item_id: str):
 
 # ─── 3. Drafts CRUD ──────────────────────────────────────────────────────────
 @router.get("/api/drafts")
+@router.get("/api/drafts/")
 @router.get("/api/v1/drafts")
+@router.get("/api/v1/drafts/")
 def list_drafts():
     """List all drafts with their findings counts."""
     return list(MEM_DRAFTS.values())
@@ -543,7 +547,9 @@ def add_comment(draft_id: str, body: CommentInput):
 
 # ─── 7. Analytics & Gap Radar ────────────────────────────────────────────────
 @router.get("/api/gap-radar")
+@router.get("/api/gap-radar/")
 @router.get("/api/v1/gap-radar")
+@router.get("/api/v1/gap-radar/")
 def get_gap_radar():
     """Surfaces brand guidelines with highest dismissal rates."""
     return [
@@ -567,7 +573,9 @@ def get_gap_radar():
 
 
 @router.get("/api/audit-log")
+@router.get("/api/audit-log/")
 @router.get("/api/v1/audit-log")
+@router.get("/api/v1/audit-log/")
 def get_audit_log():
     """Retrieve chronologically ordered audit logs."""
     return MEM_AUDIT

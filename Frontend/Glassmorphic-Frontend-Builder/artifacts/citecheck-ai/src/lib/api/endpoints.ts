@@ -101,7 +101,10 @@ export const api = {
   brandKit: () => request<BrandKit>('/brand-kit'),
   saveKitItem: (kind: 'guidelines' | 'facts' | 'terms', data: unknown, id?: string) => request(`/${kind}${id ? `/${id}` : ''}`, id ? 'PATCH' : 'POST', data),
   deleteKitItem: (kind: 'guidelines' | 'facts' | 'terms', id: string) => request(`/${kind}/${id}`, 'DELETE'),
-  drafts: () => request<Draft[]>('/drafts'),
+  drafts: async () => {
+    const res = await request<Draft[]>('/drafts');
+    return Array.isArray(res) ? res : [];
+  },
   draft: (id: string) => request<Draft>(`/drafts/${id}`),
   createDraft: (data: { title: string; text: string }) => request<Draft>('/drafts', 'POST', data),
   versions: (id: string) => request<Version[]>(`/drafts/${id}/versions`),
@@ -114,6 +117,12 @@ export const api = {
   addComment: (id: string, data: { text: string }) => request<Comment>(`/drafts/${id}/comments`, 'POST', data),
   approve: (id: string) => request(`/drafts/${id}/approve`, 'POST', {}),
   requestChanges: (id: string, data: { reason: string }) => request(`/drafts/${id}/request-changes`, 'POST', data),
-  gapRadar: () => request<any[]>('/gap-radar'),
-  auditLog: () => request<AuditItem[]>('/audit-log'),
+  gapRadar: async () => {
+    const res = await request<any[]>('/gap-radar');
+    return Array.isArray(res) ? res : [];
+  },
+  auditLog: async () => {
+    const res = await request<AuditItem[]>('/audit-log');
+    return Array.isArray(res) ? res : [];
+  },
 };
