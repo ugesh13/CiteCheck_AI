@@ -109,15 +109,39 @@ app.include_router(brand_kits.router)
 
 # ── 5. Root Endpoint & Static Frontend Serving ────────────────────────────
 import os
+from fastapi.responses import FileResponse, HTMLResponse
 from starlette.staticfiles import StaticFiles
 
-# Resolve path to built frontend (checking root public, and frontend dist directories)
+EMBEDDED_INDEX_HTML = """<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <title>CiteCheck AI</title>
+    <meta name="description" content="CiteCheck AI — Brand compliance verification engine." />
+    <meta name="robots" content="index, follow" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" crossorigin src="/assets/index-C6GxkCQb.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CecTqWCB.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
+"""
+
+# Resolve path to built frontend
 repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 dist_candidates = [
     os.path.join(repo_root, "public"),
     os.path.join(repo_root, "Frontend", "Glassmorphic-Frontend-Builder", "artifacts", "citecheck-ai", "dist", "public"),
-    os.path.join(repo_root, "frontend", "Glassmorphic-Frontend-Builder", "artifacts", "citecheck-ai", "dist", "public"),
     os.path.join(os.getcwd(), "public"),
+    os.path.join(os.getcwd(), "dist", "public"),
 ]
 frontend_dist = dist_candidates[0]
 for cand in dist_candidates:
@@ -125,14 +149,11 @@ for cand in dist_candidates:
         frontend_dist = cand
         break
 
-if os.path.isdir(frontend_dist) and os.path.exists(os.path.join(frontend_dist, "index.html")):
-    # Mount static assets (js, css, images)
+# Mount static assets if directory exists
+if os.path.isdir(frontend_dist):
     assets_dir = os.path.join(frontend_dist, "assets")
     if os.path.isdir(assets_dir):
         app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
-
-    # Serve compiled frontend index.html for root and client-side routes
-    from fastapi.responses import FileResponse
 
     @app.get("/favicon.svg", tags=["Static"])
     @app.get("/favicon.png", tags=["Static"])
@@ -146,69 +167,53 @@ if os.path.isdir(frontend_dist) and os.path.exists(os.path.join(frontend_dist, "
             return FileResponse(filepath)
         return FileResponse(os.path.join(frontend_dist, "favicon.svg"))
 
-    @app.api_route("/", methods=["GET", "HEAD"], tags=["Frontend"])
-    @app.api_route("/index.html", methods=["GET", "HEAD"], tags=["Frontend"])
-    @app.api_route("/dashboard", methods=["GET", "HEAD"], tags=["Frontend"])
-    @app.api_route("/drafts", methods=["GET", "HEAD"], tags=["Frontend"])
-    @app.api_route("/brand-kit", methods=["GET", "HEAD"], tags=["Frontend"])
-    @app.api_route("/review", methods=["GET", "HEAD"], tags=["Frontend"])
-    @app.api_route("/gap-radar", methods=["GET", "HEAD"], tags=["Frontend"])
-    @app.api_route("/audit", methods=["GET", "HEAD"], tags=["Frontend"])
-    @app.api_route("/login", methods=["GET", "HEAD"], tags=["Frontend"])
-    def serve_frontend():
-        """Serve the compiled Glassmorphic Frontend application."""
+
+@app.api_route("/", methods=["GET", "HEAD"], tags=["Frontend"])
+@app.api_route("/index.html", methods=["GET", "HEAD"], tags=["Frontend"])
+@app.api_route("/dashboard", methods=["GET", "HEAD"], tags=["Frontend"])
+@app.api_route("/drafts", methods=["GET", "HEAD"], tags=["Frontend"])
+@app.api_route("/brand-kit", methods=["GET", "HEAD"], tags=["Frontend"])
+@app.api_route("/review", methods=["GET", "HEAD"], tags=["Frontend"])
+@app.api_route("/gap-radar", methods=["GET", "HEAD"], tags=["Frontend"])
+@app.api_route("/audit", methods=["GET", "HEAD"], tags=["Frontend"])
+@app.api_route("/login", methods=["GET", "HEAD"], tags=["Frontend"])
+@app.api_route("/how-it-works", methods=["GET", "HEAD"], tags=["Frontend"])
+@app.api_route("/settings", methods=["GET", "HEAD"], tags=["Frontend"])
+def serve_frontend():
+    """Serve the compiled Glassmorphic Frontend application."""
+    if os.path.isdir(frontend_dist):
         html_file = os.path.join(frontend_dist, "index.html")
         if os.path.exists(html_file):
             return FileResponse(html_file)
-        return {
-            "service": settings.app_name,
-            "version": "1.0.0",
-            "status": "operational",
-            "docs": "/docs",
-            "health": "/healthz",
-        }
+    return HTMLResponse(content=EMBEDDED_INDEX_HTML)
 
 
-    @app.api_route("/api", methods=["GET", "HEAD"], tags=["Root"])
-    @app.api_route("/api/index.py", methods=["GET", "HEAD"], tags=["Root"])
-    @app.api_route("/api/index", methods=["GET", "HEAD"], tags=["Root"])
-    @app.get("/api-info", tags=["Root"])
-    def root(request: Optional[Request] = None):
-        """Root API info endpoint."""
-        return {
-            "service": settings.app_name,
-            "version": "1.0.0",
-            "status": "operational",
-            "docs": "/docs",
-            "health": "/healthz",
-            "auth_enabled": True,
-        }
+@app.api_route("/api", methods=["GET", "HEAD"], tags=["Root"])
+@app.api_route("/api/index.py", methods=["GET", "HEAD"], tags=["Root"])
+@app.api_route("/api/index", methods=["GET", "HEAD"], tags=["Root"])
+@app.get("/api-info", tags=["Root"])
+def root(request: Optional[Request] = None):
+    """Root API info endpoint."""
+    return {
+        "service": settings.app_name,
+        "version": "1.0.0",
+        "status": "operational",
+        "docs": "/docs",
+        "health": "/healthz",
+        "auth_enabled": True,
+    }
 
-    @app.api_route("/{full_path:path}", methods=["GET", "HEAD"], tags=["Frontend"])
-    def catchall_frontend(full_path: str):
-        """Fallback handler for frontend client routes and static assets."""
-        if full_path.startswith("api/") or full_path in ("docs", "openapi.json", "healthz"):
-            raise HTTPException(status_code=404, detail="Not Found")
+
+@app.api_route("/{full_path:path}", methods=["GET", "HEAD"], tags=["Frontend"])
+def catchall_frontend(full_path: str):
+    """Fallback handler for frontend client routes and static assets."""
+    if full_path.startswith("api/") or full_path in ("docs", "openapi.json", "healthz"):
+        raise HTTPException(status_code=404, detail="Not Found")
+    if os.path.isdir(frontend_dist):
         filepath = os.path.join(frontend_dist, full_path)
         if os.path.exists(filepath) and os.path.isfile(filepath):
             return FileResponse(filepath)
         html_file = os.path.join(frontend_dist, "index.html")
         if os.path.exists(html_file):
             return FileResponse(html_file)
-        raise HTTPException(status_code=404, detail="Not Found")
-else:
-
-    @app.api_route("/", methods=["GET", "HEAD"], tags=["Root"])
-    @app.api_route("/api", methods=["GET", "HEAD"], tags=["Root"])
-    @app.api_route("/api/index.py", methods=["GET", "HEAD"], tags=["Root"])
-    @app.api_route("/api/index", methods=["GET", "HEAD"], tags=["Root"])
-    def root(request: Optional[Request] = None):
-        """Root endpoint — confirms the API is live."""
-        return {
-            "service": settings.app_name,
-            "version": "1.0.0",
-            "status": "operational",
-            "docs": "/docs",
-            "health": "/healthz",
-            "auth_enabled": True,
-        }
+    return HTMLResponse(content=EMBEDDED_INDEX_HTML)
