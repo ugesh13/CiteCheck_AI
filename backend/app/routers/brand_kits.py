@@ -30,7 +30,7 @@ async def get_brand_kits(
     try:
         res = sb.table("brand_kits").select("*").execute()
         if res.data and len(res.data) > 0:
-            return [BrandKitResponse(**row) for row in res.data]
+            return [BrandKitResponse(**row) for row in res.data if isinstance(row, dict)]
     except Exception:
         pass
 

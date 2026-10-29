@@ -1,4 +1,5 @@
 # pyright: reportMissingImports=false
+import json
 import os
 import sys
 from urllib.parse import parse_qs, urlencode
@@ -13,14 +14,17 @@ try:
 except ImportError:
     from backend.app.main import app as fastapi_app
 
+
 class VercelPathMiddleware:
     """
-    On Vercel, requests to /api/(.*) or /api/:path* are rewritten to /api/index.py.
+    On Vercel, requests to /api/(.*) or /api are rewritten to /api/index.py.
     This middleware restores the original requested path from:
-    1. Query param `__vercel_api_path` injected by vercel.json rewrite
-    2. Request headers: x-forwarded-uri, x-original-url, x-rewrite-url, x-matched-path, x-vercel-matched-path
-    This ensures FastAPI routers match the actual API endpoints (e.g. /api/drafts, /api/brand-kit).
+    1. Query params `__subpath`, `__vercel_subpath`, or `__vercel_api_path`
+    2. Vercel route match headers (x-now-route-matches)
+    3. Proxy headers (x-forwarded-uri, x-original-url, x-rewrite-url, x-envoy-original-path, x-matched-path)
+    4. Original ASGI scope path
     """
+
     def __init__(self, app):
         self.app = app
 
@@ -29,46 +33,124 @@ class VercelPathMiddleware:
             query_str = scope.get("query_string", b"").decode("latin-1")
             restored_path = None
 
-            # 1. Check if injected via vercel.json rewrite query string
-            if "__vercel_api_path=" in query_str:
-                params = parse_qs(query_str, keep_blank_values=True)
-                if "__vercel_api_path" in params:
-                    raw_path = params.pop("__vercel_api_path")[0].strip()
-                    cleaned_qs = urlencode([(k, v) for k, vs in params.items() for v in vs])
-                    scope["query_string"] = cleaned_qs.encode("latin-1")
-                    # Ignore unexpanded template tokens or empty subpaths
-                    if raw_path and raw_path not in ("/api/$1", "/api/:match*", "/api/:path*", "/api/"):
-                        restored_path = raw_path.split("?")[0]
+            # Optional diagnostic inspector
+            if "debug_inspect=1" in query_str:
+                headers_dict = {
+                    k.decode("latin-1"): v.decode("latin-1")
+                    for k, v in scope.get("headers", [])
+                }
+                body = json.dumps(
+                    {
+                        "original_scope_path": scope.get("path"),
+                        "raw_query_string": query_str,
+                        "headers": headers_dict,
+                    },
+                    indent=2,
+                ).encode("utf-8")
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 200,
+                        "headers": [
+                            [b"content-type", b"application/json"],
+                            [b"content-length", str(len(body)).encode("latin-1")],
+                        ],
+                    }
+                )
+                await send({"type": "http.response.body", "body": body})
+                return
 
-            # 2. Check headers fallback if not found in query param
-            if not restored_path or restored_path == "/api":
-                headers = dict(scope.get("headers", []))
+            # 1. Check query parameter injected by vercel.json rewrite
+            raw_sub = None
+            if any(
+                token in query_str
+                for token in ("__subpath=", "__vercel_subpath=", "__vercel_api_path=")
+            ):
+                params = parse_qs(query_str, keep_blank_values=True)
+                for key in ("__subpath", "__vercel_subpath", "__vercel_api_path"):
+                    if key in params:
+                        raw_sub = params.pop(key)[0].strip()
+                        break
+                cleaned_qs = urlencode(
+                    [(k, v) for k, vs in params.items() for v in vs]
+                )
+                scope["query_string"] = cleaned_qs.encode("latin-1")
+
+                # Validate raw_sub is not an unexpanded token
+                if raw_sub is not None and raw_sub not in (
+                    "$1",
+                    ":match*",
+                    ":path*",
+                    "/api/$1",
+                    "/api/:match*",
+                    "/api/:path*",
+                ):
+                    sub_clean = raw_sub.split("?")[0].strip()
+                    if sub_clean.startswith("/api"):
+                        restored_path = sub_clean
+                    elif sub_clean in ("docs", "openapi.json", "healthz"):
+                        restored_path = f"/{sub_clean}"
+                    elif sub_clean:
+                        restored_path = f"/api/{sub_clean.lstrip('/')}"
+                    else:
+                        restored_path = "/api"
+
+            # 2. Check x-now-route-matches header
+            headers = dict(scope.get("headers", []))
+            if not restored_path and b"x-now-route-matches" in headers:
+                try:
+                    match_qs = headers[b"x-now-route-matches"].decode("latin-1")
+                    m_params = parse_qs(match_qs)
+                    match_val = m_params.get(
+                        "1", m_params.get("match", m_params.get("path", [""]))
+                    )[0].strip()
+                    if match_val and match_val not in ("$1", ":match*", ":path*"):
+                        if match_val.startswith("/api"):
+                            restored_path = match_val
+                        elif match_val:
+                            restored_path = f"/api/{match_val.lstrip('/')}"
+                except Exception:
+                    pass
+
+            # 3. Check proxy headers
+            if not restored_path:
                 for header_key in (
                     b"x-forwarded-uri",
                     b"x-original-url",
                     b"x-rewrite-url",
-                    b"x-matched-path",
-                    b"x-vercel-matched-path",
+                    b"x-envoy-original-path",
                 ):
                     val = headers.get(header_key)
                     if val:
                         try:
                             candidate = val.decode("utf-8").split("?")[0].strip()
-                            if candidate and not candidate.endswith("index.py") and not candidate.endswith("/index") and candidate != "/api":
+                            if candidate and not candidate.endswith(
+                                "index.py"
+                            ) and not candidate.endswith("/index"):
                                 restored_path = candidate
                                 break
                         except Exception:
                             pass
 
+            # 4. Check original scope path
+            curr_path = scope.get("path", "")
+            if not restored_path:
+                if curr_path and curr_path not in (
+                    "/api/index.py",
+                    "/api/index",
+                    "/api",
+                    "/api/",
+                ):
+                    restored_path = curr_path
+                elif curr_path in ("/api/index.py", "/api/index"):
+                    restored_path = "/api"
+
             if restored_path:
                 if not restored_path.startswith("/"):
                     restored_path = "/" + restored_path
                 scope["path"] = restored_path
-            elif scope.get("path") in ("/api/index.py", "/api/index"):
-                # If path is literally /api/index.py with no subpath detected, route to /api
-                scope["path"] = "/api"
 
         await self.app(scope, receive, send)
 
-app = VercelPathMiddleware(fastapi_app)
 
+app = VercelPathMiddleware(fastapi_app)

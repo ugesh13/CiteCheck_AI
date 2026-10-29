@@ -98,7 +98,14 @@ async function fixtureRequest(path: string, method: string, body?: any): Promise
 }
 export const api = {
   login: (data: { email: string; password: string; role: Role }) => request<{ token: string; user: User }>('/auth/login', 'POST', data),
-  brandKit: () => request<BrandKit>('/brand-kit'),
+  brandKit: async () => {
+    const res = await request<BrandKit>('/brand-kit');
+    return {
+      guidelines: Array.isArray(res?.guidelines) ? res.guidelines : [],
+      facts: Array.isArray(res?.facts) ? res.facts : [],
+      terms: Array.isArray(res?.terms) ? res.terms : [],
+    };
+  },
   saveKitItem: (kind: 'guidelines' | 'facts' | 'terms', data: unknown, id?: string) => request(`/${kind}${id ? `/${id}` : ''}`, id ? 'PATCH' : 'POST', data),
   deleteKitItem: (kind: 'guidelines' | 'facts' | 'terms', id: string) => request(`/${kind}/${id}`, 'DELETE'),
   drafts: async () => {
@@ -107,13 +114,22 @@ export const api = {
   },
   draft: (id: string) => request<Draft>(`/drafts/${id}`),
   createDraft: (data: { title: string; text: string }) => request<Draft>('/drafts', 'POST', data),
-  versions: (id: string) => request<Version[]>(`/drafts/${id}/versions`),
+  versions: async (id: string) => {
+    const res = await request<Version[]>(`/drafts/${id}/versions`);
+    return Array.isArray(res) ? res : [];
+  },
   createVersion: (id: string, data: { text?: string }) => request<Version>(`/drafts/${id}/versions`, 'POST', data),
   diff: (id: string, from: number, to: number) => request<any>(`/drafts/${id}/diff?from=${from}&to=${to}`),
   review: (id: string) => request<{ findings: Finding[]; dropped: Dropped[] }>(`/drafts/${id}/review`, 'POST', {}),
-  findings: (id: string) => request<Finding[]>(`/drafts/${id}/findings`),
+  findings: async (id: string) => {
+    const res = await request<Finding[]>(`/drafts/${id}/findings`);
+    return Array.isArray(res) ? res : [];
+  },
   decision: (id: string, data: { action: 'accept' | 'edit' | 'dismiss'; reason?: string; edited_fix?: string }) => request(`/findings/${id}/decision`, 'POST', data),
-  comments: (id: string) => request<Comment[]>(`/drafts/${id}/comments`),
+  comments: async (id: string) => {
+    const res = await request<Comment[]>(`/drafts/${id}/comments`);
+    return Array.isArray(res) ? res : [];
+  },
   addComment: (id: string, data: { text: string }) => request<Comment>(`/drafts/${id}/comments`, 'POST', data),
   approve: (id: string) => request(`/drafts/${id}/approve`, 'POST', {}),
   requestChanges: (id: string, data: { reason: string }) => request(`/drafts/${id}/request-changes`, 'POST', data),
