@@ -201,7 +201,7 @@ else:
     @app.api_route("/api", methods=["GET", "HEAD"], tags=["Root"])
     @app.api_route("/api/index.py", methods=["GET", "HEAD"], tags=["Root"])
     @app.api_route("/api/index", methods=["GET", "HEAD"], tags=["Root"])
-    def root():
+    def root(request: Request):
         """Root endpoint — confirms the API is live."""
         return {
             "service": settings.app_name,
@@ -210,4 +210,7 @@ else:
             "docs": "/docs",
             "health": "/healthz",
             "auth_enabled": True,
+            "called_path": request.url.path,
+            "headers": dict(request.headers),
+            "query": dict(request.query_params),
         }
