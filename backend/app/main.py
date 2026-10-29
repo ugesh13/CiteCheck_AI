@@ -161,7 +161,7 @@ if os.path.isdir(frontend_dist) and os.path.exists(os.path.join(frontend_dist, "
     @app.api_route("/api/index.py", methods=["GET", "HEAD"], tags=["Root"])
     @app.api_route("/api/index", methods=["GET", "HEAD"], tags=["Root"])
     @app.get("/api-info", tags=["Root"])
-    def root():
+    def root(request: Request):
         """Root API info endpoint."""
         return {
             "service": settings.app_name,
@@ -170,6 +170,9 @@ if os.path.isdir(frontend_dist) and os.path.exists(os.path.join(frontend_dist, "
             "docs": "/docs",
             "health": "/healthz",
             "auth_enabled": True,
+            "called_path": request.url.path,
+            "headers": dict(request.headers),
+            "query": dict(request.query_params),
         }
 
     @app.api_route("/{full_path:path}", methods=["GET", "HEAD"], tags=["Frontend"])
