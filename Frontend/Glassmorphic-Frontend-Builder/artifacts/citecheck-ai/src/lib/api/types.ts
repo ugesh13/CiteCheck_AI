@@ -12,6 +12,19 @@ export type Dropped = { candidate: string; failed_gate: 1 | 2 | 3 | 4 | 5; why: 
 export type Draft = { id: string; title: string; text: string; version: number; status: string; updated_at: string; findings_count?: number };
 export type BrandKit = { guidelines: Guideline[]; facts: Fact[]; terms: Term[] };
 export type Comment = { id: string; author: string; text: string; created_at: string };
-export type AuditItem = { id: string; who: string; role: Role; action: string; target: string; timestamp: string };
+export type AuditItem = { id: string; who: string; role: Role; action: string; target: string; timestamp: string; reason?: string; details?: string };
+export type GapRadarItem = {
+  rule: string;
+  guideline_id?: string;
+  guideline_code?: string;
+  category?: string;
+  flagged: number;
+  accepted: number;
+  dismissed: number;
+  dismissal_rate: number;
+  status: string;
+  reasons: string[];
+  recommendation?: string;
+};
 export type Version = { id: string; version: number; text: string; created_at: string; status?: string };
 export type ApiError = Error & { status?: number; fields?: Record<string, string> };

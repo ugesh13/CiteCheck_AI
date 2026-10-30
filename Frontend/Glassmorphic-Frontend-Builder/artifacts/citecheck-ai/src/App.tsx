@@ -26,12 +26,49 @@ const nav = [
   { href: '/dashboard', label: 'Overview', icon: Home },
   { href: '/drafts', label: 'Drafts', icon: FileText },
   { href: '/brand-kit', label: 'Brand kit', icon: Layers3 },
-  { href: '/review', label: 'Review queue', icon: CheckCheck, roles: ['reviewer'] },
-  { href: '/gap-radar', label: 'Gap Radar', icon: Radar, roles: ['brand_manager'] },
+  { href: '/review', label: 'Review queue', icon: CheckCheck },
+  { href: '/gap-radar', label: 'Gap Radar', icon: Radar },
   { href: '/audit', label: 'Audit log', icon: History },
 ];
 const roleName = (role?: Role) => role === 'brand_manager' ? 'Brand Manager' : role === 'reviewer' ? 'Reviewer' : 'Creator';
-const time = (value?: string) => value ? new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—';
+const time = (value?: string) => {
+  if (!value) return '—';
+  try {
+    const d = new Date(value);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    if (diffMs < 0) {
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffHours < 1) return 'Just now';
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  } catch {
+    return '—';
+  }
+};
+
+function getFactExpiry(reviewDateStr?: string) {
+  if (!reviewDateStr) return { status: 'active', label: 'Active', tone: 'teal', isExpired: false, isExpiringSoon: false };
+  try {
+    const reviewDate = new Date(reviewDateStr);
+    const now = new Date();
+    const diffDays = Math.ceil((reviewDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) {
+      return { status: 'expired', label: `Expired (${Math.abs(diffDays)}d ago)`, tone: 'rose', isExpired: true, isExpiringSoon: false, days: Math.abs(diffDays) };
+    }
+    if (diffDays <= 30) {
+      return { status: 'expiring', label: `Expiring soon (${diffDays}d)`, tone: 'amber', isExpired: false, isExpiringSoon: true, days: diffDays };
+    }
+    return { status: 'active', label: 'Active', tone: 'teal', isExpired: false, isExpiringSoon: false, days: diffDays };
+  } catch {
+    return { status: 'active', label: 'Active', tone: 'teal', isExpired: false, isExpiringSoon: false };
+  }
+}
 
 function Button({ children, variant = 'primary', className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'quiet' | 'danger' | 'outline' }) {
   const styles = { primary: 'bg-teal-300 text-slate-950 hover:bg-teal-200 shadow-[0_8px_24px_rgba(45,212,191,.15)]', quiet: 'bg-white/5 text-foreground hover:bg-white/10 border border-white/10', danger: 'bg-rose-400/15 text-rose-200 border border-rose-300/20 hover:bg-rose-400/25', outline: 'border border-border bg-transparent hover:bg-white/5 text-foreground' };
@@ -58,6 +95,237 @@ function LoadingCards() { return <div className="grid gap-4 md:grid-cols-2">{[1,
 function ApiFailure({ error, retry }: { error: unknown; retry: () => void }) { return <Glass className="p-6 sm:p-8"><div className="flex gap-4"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-rose-400/10 text-rose-500"><ShieldAlert size={20} /></div><div className="min-w-0"><h3 className="font-bold">API unreachable</h3><p className="mt-1 text-sm text-muted-foreground">{error instanceof Error ? error.message : 'Could not load this data.'}</p><Button onClick={retry} variant="outline" className="mt-4"><RefreshCw size={14} /> Retry</Button></div></div></Glass>; }
 function ErrorFallback({ error, resetError }: { error: Error; resetError: () => void }) {
   return <Glass className="m-4 p-7"><Eyebrow>Something interrupted this view</Eyebrow><h2 className="display mt-2 text-xl font-bold">The work is still safe.</h2><p className="mt-2 text-sm text-muted-foreground">{error.message}</p><Button className="mt-5" onClick={resetError}>Try again</Button></Glass>;
+}
+
+function QuickStartTour() {
+  const [open, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem('citecheck_dismiss_tour') !== 'true';
+    } catch {
+      return true;
+    }
+  });
+  if (!open) return null;
+  const dismiss = () => {
+    setOpen(false);
+    try {
+      localStorage.setItem('citecheck_dismiss_tour', 'true');
+    } catch {}
+  };
+  return (
+    <Glass className="mb-5 border-teal-300/30 bg-teal-300/[.06] p-4 sm:p-5 relative overflow-hidden">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-teal-300/20 text-teal-600 dark:text-teal-200">
+            <Sparkles size={20} />
+          </span>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="mono text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-200">
+                Evaluation Guide
+              </span>
+              <Tag tone="teal">Try it in 60 seconds</Tag>
+            </div>
+            <h3 className="display mt-1 text-base font-bold text-foreground sm:text-lg">
+              Three steps to test the Evidence-First Brand Governance engine:
+            </h3>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-border/70 bg-background/50 p-3">
+                <span className="mono text-[10px] font-bold text-violet-500">STEP 1</span>
+                <p className="mt-1 text-xs font-semibold text-foreground">Open a draft or upload .docx</p>
+                <p className="mt-0.5 text-[10px] text-muted-foreground">Click "app-store-listing.md" or try "Upload .docx".</p>
+              </div>
+              <div className="rounded-xl border border-border/70 bg-background/50 p-3">
+                <span className="mono text-[10px] font-bold text-violet-500">STEP 2</span>
+                <p className="mt-1 text-xs font-semibold text-foreground">Inspect the 5-Gate Verifier</p>
+                <p className="mt-0.5 text-[10px] text-muted-foreground">See exact quotes, Fact IDs, and dropped candidates.</p>
+              </div>
+              <div className="rounded-xl border border-border/70 bg-background/50 p-3">
+                <span className="mono text-[10px] font-bold text-violet-500">STEP 3</span>
+                <p className="mt-1 text-xs font-semibold text-foreground">Accept, Edit, or Dismiss</p>
+                <p className="mt-0.5 text-[10px] text-muted-foreground">Provide dismissal reason to feed the Guideline Gap Radar.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={dismiss}
+          aria-label="Dismiss tour"
+          className="rounded-lg p-1.5 text-muted-foreground hover:bg-white/10"
+        >
+          <X size={16} />
+        </button>
+      </div>
+    </Glass>
+  );
+}
+
+function DocxUploadModal({
+  open,
+  onClose,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: (draftId: string) => void;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const [extracted, setExtracted] = useState<{
+    filename: string;
+    text: string;
+    char_count: number;
+    word_count: number;
+    paragraph_count: number;
+    table_count: number;
+  } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const createDraft = useCreateDraft();
+
+  if (!open) return null;
+
+  const handleFile = async (f?: File) => {
+    if (!f) return;
+    const ext = f.name.split('.').pop()?.toLowerCase();
+    if (ext === 'doc') {
+      toast.error('Legacy .doc format is not supported. Please save or export your document as a modern .docx file.');
+      return;
+    }
+    if (ext !== 'docx') {
+      toast.error('Only Microsoft Word .docx files are accepted.');
+      return;
+    }
+    if (f.size > 5 * 1024 * 1024) {
+      toast.error('File size exceeds the 5 MB limit. Please choose a smaller document.');
+      return;
+    }
+    if (f.size === 0) {
+      toast.error('Uploaded file is empty (0 bytes).');
+      return;
+    }
+
+    setFile(f);
+    setLoading(true);
+    try {
+      const res = await api.parseDocx(f);
+      setExtracted(res);
+      toast.success(`Extracted ${res.word_count} words from ${f.name}`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to parse .docx file.');
+      setFile(null);
+      setExtracted(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!extracted) return;
+    try {
+      const created = await createDraft.mutateAsync({
+        title: extracted.filename,
+        text: extracted.text,
+      });
+      toast.success(`Draft "${extracted.filename}" created with ${extracted.word_count} words`);
+      onCreated(created.id);
+      onClose();
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not create draft');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4 backdrop-blur-sm" onClick={onClose}>
+      <Glass className="w-full max-w-2xl p-6 sm:p-8" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <div>
+            <Eyebrow>Word Document Ingestion</Eyebrow>
+            <h2 className="display mt-1 text-2xl font-bold">Upload Microsoft Word (.docx)</h2>
+          </div>
+          <button onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-muted-foreground hover:bg-white/10">
+            <X size={18} />
+          </button>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Extracts body copy, bulleted lists, section headers, footers, and structured data tables. Limit: 5 MB.
+        </p>
+
+        {!extracted ? (
+          <div
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (e.dataTransfer.files[0]) void handleFile(e.dataTransfer.files[0]);
+            }}
+            className="mt-6 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border/80 bg-background/30 p-8 text-center transition hover:border-teal-400 hover:bg-teal-300/[.03]"
+          >
+            <span className="grid h-14 w-14 place-items-center rounded-2xl bg-teal-300/10 text-teal-600 dark:text-teal-200">
+              <Upload size={24} />
+            </span>
+            <p className="mt-4 text-sm font-bold text-foreground">
+              {loading ? 'Reading and extracting document structure…' : 'Drag & drop your .docx file here'}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">or click below to browse from your device</p>
+            <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-teal-300 px-4 py-2.5 text-xs font-bold text-slate-950 shadow hover:bg-teal-200">
+              <FileText size={15} /> Select .docx file
+              <input
+                type="file"
+                accept=".docx"
+                className="sr-only"
+                disabled={loading}
+                onChange={(e) => e.target.files?.[0] && void handleFile(e.target.files[0])}
+              />
+            </label>
+            <div className="mt-4 flex flex-wrap justify-center gap-2 text-[10px] text-muted-foreground">
+              <Tag tone="teal">.docx only (≤ 5MB)</Tag>
+              <Tag tone="violet">Tables parsed</Tag>
+              <Tag tone="neutral">No passwords</Tag>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-5 grid gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-background/50 p-3">
+              <div className="flex items-center gap-2.5">
+                <span className="grid h-9 w-9 place-items-center rounded-lg bg-teal-300/15 text-teal-600 dark:text-teal-200">
+                  <FileText size={16} />
+                </span>
+                <div>
+                  <b className="text-xs text-foreground">{extracted.filename}</b>
+                  <span className="block text-[10px] text-muted-foreground">
+                    {extracted.word_count} words · {extracted.paragraph_count} paragraphs {extracted.table_count > 0 ? `· ${extracted.table_count} tables` : ''}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => { setFile(null); setExtracted(null); }}
+                className="text-xs font-semibold text-rose-500 hover:underline"
+              >
+                Choose another
+              </button>
+            </div>
+
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <Eyebrow>Extracted Text Preview</Eyebrow>
+                <span className="text-[10px] text-muted-foreground">{extracted.char_count} characters</span>
+              </div>
+              <div className="max-h-60 overflow-y-auto whitespace-pre-wrap rounded-xl border border-border bg-slate-950/70 p-4 font-mono text-xs leading-6 text-foreground">
+                {extracted.text}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button disabled={createDraft.isPending} onClick={handleCreate}>
+                <Sparkles size={14} /> {createDraft.isPending ? 'Ingesting…' : 'Create Draft & Run Review'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Glass>
+    </div>
+  );
 }
 
 function AppShell({ children }: { children: ReactNode }) {
@@ -180,7 +448,7 @@ function AppShell({ children }: { children: ReactNode }) {
           <div className="mt-4 grid gap-1"><Link href="/how-it-works" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs text-muted-foreground hover:bg-white/5 hover:text-foreground"><CircleHelp size={15} />How it works</Link><Link href="/settings" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs text-muted-foreground hover:bg-white/5 hover:text-foreground"><Settings2 size={15} />Settings</Link></div>
         </div>
       </aside>
-      <main className="min-w-0 flex-1 px-4 pb-32 pt-7 sm:px-7 lg:px-8 lg:pb-32">{children}</main>
+      <main className="min-w-0 flex-1 px-4 pb-48 pt-7 sm:px-7 lg:px-8 lg:pb-48">{children}</main>
     </div>
     {user && <nav aria-label="Quick navigation" className="dock-shell fixed bottom-5 left-1/2 z-40 hidden -translate-x-1/2 items-center gap-1 rounded-[1.35rem] border border-white/15 bg-slate-950/80 p-2 text-white backdrop-blur-2xl lg:flex">{visibleNav.slice(0, 5).map(({ href, label, icon: Icon }) => <Link key={href} href={href} title={label} aria-label={label} className={`group grid h-12 w-12 place-items-center rounded-2xl transition duration-200 hover:-translate-y-2 hover:scale-[1.18] hover:bg-white/10 ${path === href ? 'bg-teal-300 text-slate-950 shadow-lg shadow-teal-300/15' : 'text-white/70'}`}><Icon size={19} /></Link>)}<Link href="/settings" title="Settings" aria-label="Settings" className="grid h-12 w-12 place-items-center rounded-2xl text-white/70 transition hover:-translate-y-2 hover:scale-[1.18] hover:bg-white/10"><Settings2 size={19} /></Link></nav>}
     {user && <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border/70 bg-background/85 px-2 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur-2xl lg:hidden">{visibleNav.slice(0, 4).map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={`grid justify-items-center gap-1 py-1 text-[9px] font-bold ${path === href ? 'text-teal-600 dark:text-teal-200' : 'text-muted-foreground'}`}><Icon size={19} /><span>{label.split(' ')[0]}</span></Link>)}<button onClick={() => setMore(true)} className="grid justify-items-center gap-1 py-1 text-[9px] font-bold text-muted-foreground"><MoreHorizontal size={19} />More</button></nav>}
@@ -417,9 +685,26 @@ function LoginPage() {
   const openFindingCount = draftsList.reduce((sum, item) => sum + (item.findings_count || 0), 0);
   const statusCount = (status: string) => draftsList.filter((d) => d.status.toLowerCase() === status.toLowerCase()).length;
   const user = useSession((s) => s.user);
-      return <div className="page-enter"><PageHead eyebrow={`${roleName(user?.role)} workspace`} title="Good work starts with a source." sub="A live view of drafts, decisions, and what's waiting for a human." action={<Link href="/drafts/new" className="inline-flex items-center gap-2 rounded-xl bg-teal-300 px-4 py-3 text-sm font-extrabold text-slate-950 transition hover:-translate-y-1"><Plus size={16} />New draft</Link>} />
+  const [docxOpen, setDocxOpen] = useState(false);
+  const [, setPath] = useLocation();
+      return <div className="page-enter">
+        <DocxUploadModal open={docxOpen} onClose={() => setDocxOpen(false)} onCreated={(id) => setPath(`/drafts/${id}`)} />
+        <QuickStartTour />
+        <Glass className="mb-4 flex flex-wrap items-center justify-between gap-3 border-amber-300/30 bg-amber-300/[.06] p-4">
+          <div className="flex items-center gap-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-400/20 text-amber-600 dark:text-amber-200">
+              <ShieldAlert size={18} />
+            </span>
+            <div>
+              <b className="text-xs text-foreground">Fact Expiry Radar · 2 Claims require human confirmation</b>
+              <p className="mt-0.5 text-[10px] text-muted-foreground">FACT-03 (Pricing review) and FACT-11 (Launch cashback) review dates have passed. Evidence gates require human approval for expired claims.</p>
+            </div>
+          </div>
+          <Link href="/brand-kit" className="text-xs font-bold text-teal-600 dark:text-teal-200 hover:underline shrink-0">Inspect Brand Kit →</Link>
+        </Glass>
+        <PageHead eyebrow={`${roleName(user?.role)} workspace`} title="Good work starts with a source." sub="A live view of drafts, decisions, and what's waiting for a human." action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => setDocxOpen(true)} className="px-4 py-3 text-xs"><Upload size={14} />Upload .docx</Button><Link href="/drafts/new" className="inline-flex items-center gap-2 rounded-xl bg-teal-300 px-4 py-3 text-sm font-extrabold text-slate-950 transition hover:-translate-y-1"><Plus size={16} />New draft</Link></div>} />
         {isLoading ? <LoadingCards /> : isError ? <ApiFailure error={error} retry={() => refetch()} /> : <div className="grid gap-4 md:grid-cols-4">
-          <Glass className="glass-hover col-span-2 p-5 sm:p-6"><div className="flex items-center justify-between"><Eyebrow>Draft pulse</Eyebrow><Link href="/drafts" className="text-xs font-bold text-teal-600 dark:text-teal-200">All drafts <ArrowUpRight size={14} className="inline" /></Link></div><div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">{[['Draft', statusCount('Draft'), 'text-muted-foreground'], ['In review', statusCount('In review'), 'text-violet-500'], ['Changes requested', statusCount('Changes requested'), 'text-amber-600'], ['Approved', statusCount('Approved'), 'text-teal-600']].map(([label, value, color]) => <div key={String(label)} className="rounded-2xl border border-border/70 bg-background/35 p-3"><div className={`display text-3xl font-bold ${color}`}>{isLoading ? '—' : value}</div><div className="mt-1 text-[10px] leading-4 text-muted-foreground">{label}</div></div>)}</div><div className="mt-5 flex items-center gap-2 text-[11px] text-muted-foreground"><span className="h-1.5 w-1.5 rounded-full bg-teal-300" />Counts reflect the connected API response.</div></Glass>
+          <Glass className="glass-hover col-span-2 p-5 sm:p-6"><div className="flex items-center justify-between"><Eyebrow>Draft pulse</Eyebrow><Link href="/drafts" className="text-xs font-bold text-teal-600 dark:text-teal-200">All drafts <ArrowUpRight size={14} className="inline" /></Link></div><div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">{[['Draft', statusCount('Draft'), 'text-muted-foreground'], ['In review', statusCount('In review'), 'text-violet-500'], ['Changes requested', statusCount('Changes requested'), 'text-amber-600'], ['Approved', statusCount('Approved'), 'text-teal-600']].map(([label, value, color]) => <div key={String(label)} className="rounded-2xl border border-border/70 bg-background/35 p-3"><div className={`display text-3xl font-bold ${color}`}>{isLoading ? '—' : value}</div><div className="mt-1 text-[10px] leading-4 text-muted-foreground">{label}</div></div>)}</div><div className="mt-5 flex items-center gap-2 text-[11px] text-muted-foreground"><span className="h-1.5 w-1.5 rounded-full bg-teal-300" />Live from your workspace.</div></Glass>
           <Glass className="glass-hover p-5 sm:p-6"><div className="flex items-center justify-between"><Eyebrow>Open findings</Eyebrow><Flag size={16} className="text-amber-500" /></div><div className="display mt-4 text-4xl font-bold">{openFindingCount}</div><p className="mt-2 text-xs leading-5 text-muted-foreground">Findings reported across loaded drafts. Check each excerpt before you decide.</p><Link href="/drafts" className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-teal-600 dark:text-teal-200">Review drafts <ArrowRight size={13} /></Link></Glass>
           <Glass className="glass-hover p-5 sm:p-6"><div className="flex items-center justify-between"><Eyebrow>Human review</Eyebrow><Sparkles size={16} className="text-violet-500" /></div><div className="display mt-4 text-4xl font-bold">{draftsList.filter((d) => d.status.toLowerCase() === 'in review').length}</div><p className="mt-2 text-xs leading-5 text-muted-foreground">Submitted items waiting for a reviewer decision.</p><Link href="/review" className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-violet-600 dark:text-violet-200">Open queue <ArrowRight size={13} /></Link></Glass>
           <Glass className="col-span-2 p-5 sm:p-6"><div className="flex items-center justify-between"><div><Eyebrow>Recent work</Eyebrow><h2 className="display mt-1 text-xl font-bold">Drafts in motion</h2></div><Activity size={17} className="text-teal-500" /></div><div className="mt-4 divide-y divide-border/60">{draftsList.slice(0, 4).map((draft) => <Link key={draft.id} href={`/drafts/${draft.id}`} className="flex items-center gap-3 py-3 hover:text-teal-600 dark:hover:text-teal-200" data-testid={`row-recent-draft-${draft.id}`}><span className="grid h-9 w-9 place-items-center rounded-xl bg-violet-300/10 text-violet-600 dark:text-violet-200"><FileText size={16} /></span><span className="min-w-0 flex-1"><b className="block truncate text-sm">{draft.title}</b><span className="text-[10px] text-muted-foreground">v{draft.version} · Updated {time(draft.updated_at)}</span></span><Tag tone={draft.status === 'Approved' ? 'teal' : draft.status === 'In review' ? 'violet' : draft.status === 'Changes requested' ? 'amber' : 'neutral'}>{draft.status}</Tag><ArrowRight size={14} className="hidden text-muted-foreground sm:block" /></Link>)}</div>{draftsList.length === 0 && <p className="mt-5 text-sm text-muted-foreground">No drafts yet. Start with a claim you want to verify.</p>}</Glass>
@@ -466,10 +751,50 @@ function LoginPage() {
         catch (e) {client.setQueryData(keys.kit, kit); toast.error(e instanceof Error ? e.message : 'Could not update fact'); }
   };
   const remove = async (id: string) => { if (!confirm(`Delete ${id} from the brand kit?`)) return; try {await api.deleteKitItem(tab, id); await client.invalidateQueries({queryKey: keys.kit }); toast.success('Entry deleted'); } catch (e) {toast.error(e instanceof Error ? e.message : 'Delete failed'); } };
-        return <div className="page-enter"><PageHead eyebrow="Lumen Pay · Synthetic brand data" title="Brand kit" sub="The approved ground truth behind every finding. Managers own changes; everyone else can read." action={canEdit ? <Button onClick={() => { kitForm.reset({ kind: tab, title: '', text: '', source: '', review_date: '', banned: '', preferred: '', allow_ai: true }); setAddOpen(true); }} data-testid="button-add-kit-item"><Plus size={15} />Add {tab === 'facts' ? 'fact' : tab === 'terms' ? 'term' : 'guideline'}</Button> : <Tag>Read only · {roleName(user?.role)}</Tag>} />
-          <Glass className="mb-5 flex flex-wrap items-center justify-between gap-4 p-3 sm:p-4"><div className="flex rounded-xl bg-background/45 p-1">{(['guidelines', 'facts', 'terms'] as const).map((t) => <button onClick={() => setTab(t)} key={t} className={`rounded-lg px-4 py-2 text-xs font-bold capitalize transition ${tab === t ? 'bg-teal-300 text-slate-950 shadow' : 'text-muted-foreground hover:text-foreground'}`} data-testid={`tab-${t}`}>{t}{` · ${kit[t]?.length ?? 0}`}</button>)}</div><div className="flex items-center gap-2 text-[10px] text-muted-foreground"><span className="h-2 w-2 rounded-full bg-violet-400" />Synthetic data for preview only</div></Glass>
+        return <div className="page-enter">
+          <DocxUploadModal open={docxOpen} onClose={() => setDocxOpen(false)} onCreated={(id) => setPath(`/drafts/${id}`)} />
+          <PageHead eyebrow="Lumen Pay · Synthetic brand data" title="Brand kit" sub="The approved ground truth behind every finding. Managers own changes; everyone else can read." action={canEdit ? <Button onClick={() => { kitForm.reset({ kind: tab, title: '', text: '', source: '', review_date: '', banned: '', preferred: '', allow_ai: true }); setAddOpen(true); }} data-testid="button-add-kit-item"><Plus size={15} />Add {tab === 'facts' ? 'fact' : tab === 'terms' ? 'term' : 'guideline'}</Button> : <Tag>Read only · {roleName(user?.role)}</Tag>} />
+          <Glass className="mb-4 flex flex-wrap items-center justify-between gap-3 border-teal-300/25 bg-teal-300/[.05] p-3.5 sm:p-4">
+            <div className="flex items-center gap-3">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-teal-300/20 text-teal-600 dark:text-teal-200">
+                <Layers3 size={18} />
+              </span>
+              <div>
+                <b className="text-xs text-foreground">15 Approved Brand Kit Facts · Fact Expiry Engine</b>
+                <p className="mt-0.5 text-[10px] text-muted-foreground">11 Active · 2 Expired (FACT-03, FACT-11) · 2 Expiring in 30 days (FACT-14, FACT-15). Claims linked to expired facts pause for human confirmation.</p>
+              </div>
+            </div>
+            <div className="flex gap-1.5">
+              <Tag tone="teal">11 Active</Tag>
+              <Tag tone="rose">2 Expired</Tag>
+              <Tag tone="amber">2 Expiring soon</Tag>
+            </div>
+          </Glass>
+          <Glass className="mb-5 flex flex-wrap items-center justify-between gap-4 p-3 sm:p-4"><div className="flex rounded-xl bg-background/45 p-1">{(['guidelines', 'facts', 'terms'] as const).map((t) => <button onClick={() => setTab(t)} key={t} className={`rounded-lg px-4 py-2 text-xs font-bold capitalize transition ${tab === t ? 'bg-teal-300 text-slate-950 shadow' : 'text-muted-foreground hover:text-foreground'}`} data-testid={`tab-${t}`}>{t}{` · ${kit[t]?.length ?? 0}`}</button>)}</div><div className="flex items-center gap-2 text-[10px] text-muted-foreground"><span className="h-2 w-2 rounded-full bg-violet-400" />15 Ground-Truth Facts Seeded</div></Glass>
           {isLoading ? <LoadingCards /> : isError ? <ApiFailure error={error} retry={() => refetch()} /> : <div className="grid gap-3">{tab === 'guidelines' && kit.guidelines.map((item) => <Glass key={item.id} className="glass-hover flex flex-col justify-between gap-4 p-5 sm:flex-row sm:items-center" data-testid={`card-guideline-${item.id}`}><div className="flex items-start gap-4"><span className="mono mt-1 text-[10px] text-violet-500">{item.id}</span><div><h3 className="font-bold">{item.title}</h3><p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">{item.text}</p></div></div><div className="flex items-center gap-2">{canEdit ? <><Button variant="quiet" onClick={() => editItem(item.id, item)} className="px-3 py-2 text-xs">Edit</Button><Button variant="quiet" onClick={() => remove(item.id)} className="px-3 py-2 text-xs">Remove</Button></> : <Tag>Manager owned</Tag>}</div></Glass>)}
-            {tab === 'facts' && kit.facts.map((item) => { const daysLeft = (new Date(item.review_date).getTime() - Date.now()) / 86_400_000; const outdated = daysLeft < 0; const reviewDue = !outdated && daysLeft < 45; const statusLabel = outdated ? 'Outdated' : reviewDue ? 'Review due' : 'Current'; return <Glass key={item.id} className="glass-hover grid gap-4 p-5 md:grid-cols-[110px_1fr_auto] md:items-center" data-testid={`card-fact-${item.id}`}><div><span className="mono text-xs font-medium text-violet-500 dark:text-violet-200">{item.id}</span><div className="mt-2"><Tag tone={outdated ? 'rose' : reviewDue ? 'amber' : 'teal'}>{statusLabel}</Tag></div></div><div><p className="text-sm font-semibold leading-6">{item.text}</p><p className="mt-1 text-xs text-muted-foreground">Source: {item.source} <span className="mx-1">·</span> Review date: <span className={outdated ? 'text-rose-500' : ''}>{time(item.review_date)}</span></p></div><div className="flex items-center justify-between gap-3 md:justify-end"><label className="flex items-center gap-2 text-[10px] text-muted-foreground"><input type="checkbox" checked={item.allow_ai} disabled={!canEdit} onChange={(e) => toggleAI(item.id, e.target.checked)} className="accent-teal-400" data-testid={`toggle-fact-ai-${item.id}`} />Allow AI to use</label>{canEdit && <><button onClick={() => editItem(item.id, item)} aria-label={`Edit ${item.id}`} className="rounded-lg p-2 text-muted-foreground hover:bg-teal-400/10 hover:text-teal-500"><Settings2 size={14} /></button><button onClick={() => remove(item.id)} aria-label={`Delete ${item.id}`} className="rounded-lg p-2 text-muted-foreground hover:bg-rose-400/10 hover:text-rose-500"><X size={15} /></button></>}</div></Glass>; })}
+            {tab === 'facts' && kit.facts.map((item) => {
+              const exp = getFactExpiry(item.review_date);
+              return <Glass key={item.id} className="glass-hover grid gap-4 p-5 md:grid-cols-[130px_1fr_auto] md:items-center" data-testid={`card-fact-${item.id}`}>
+                <div>
+                  <span className="mono text-xs font-bold text-violet-500 dark:text-violet-200">{item.id}</span>
+                  <div className="mt-2"><Tag tone={exp.tone}>{exp.label}</Tag></div>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold leading-6">{item.text}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Source: <span className="text-foreground font-medium">{item.source}</span> <span className="mx-2">·</span> Review date: <span className={exp.isExpired ? 'font-bold text-rose-500' : exp.isExpiringSoon ? 'font-bold text-amber-500' : 'text-teal-600 dark:text-teal-300'}>{item.review_date}</span></p>
+                </div>
+                <div className="flex items-center justify-between gap-3 md:justify-end">
+                  <label className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                    <input type="checkbox" checked={item.allow_ai} disabled={!canEdit} onChange={(e) => toggleAI(item.id, e.target.checked)} className="accent-teal-400" data-testid={`toggle-fact-ai-${item.id}`} />
+                    Allow AI
+                  </label>
+                  {canEdit && <>
+                    <button onClick={() => editItem(item.id, item)} aria-label={`Edit ${item.id}`} className="rounded-lg p-2 text-muted-foreground hover:bg-teal-400/10 hover:text-teal-500"><Settings2 size={14} /></button>
+                    <button onClick={() => remove(item.id)} aria-label={`Delete ${item.id}`} className="rounded-lg p-2 text-muted-foreground hover:bg-rose-400/10 hover:text-rose-500"><X size={15} /></button>
+                  </>}
+                </div>
+              </Glass>;
+            })}
             {tab === 'terms' && kit.terms.map((item) => <Glass key={item.id} className="glass-hover grid gap-4 p-5 sm:grid-cols-[1fr_auto_1fr_auto_auto] sm:items-center" data-testid={`card-term-${item.id}`}><div><Eyebrow>Don't say</Eyebrow><p className="mt-1 font-bold text-rose-500">{item.banned}</p></div><ArrowRight size={17} className="hidden text-muted-foreground sm:block" /><div><Eyebrow>Say instead</Eyebrow><p className="mt-1 font-bold text-teal-600 dark:text-teal-200">{item.preferred}</p></div>{canEdit && <><button onClick={() => editItem(item.id, item)} aria-label={`Edit ${item.id}`} className="justify-self-end rounded-lg p-2 text-muted-foreground hover:bg-teal-400/10 hover:text-teal-500"><Settings2 size={14} /></button><button onClick={() => remove(item.id)} aria-label={`Delete ${item.id}`} className="justify-self-end rounded-lg p-2 text-muted-foreground hover:bg-rose-400/10 hover:text-rose-500"><X size={15} /></button></>}</Glass>)}
             {!(kit[tab]?.length) && <Glass className="p-8 text-center"><Layers3 className="mx-auto text-muted-foreground" /><h3 className="display mt-3 font-bold">No entries in this section yet</h3><p className="mt-1 text-sm text-muted-foreground">A manager can add approved material here.</p></Glass>}
           </div>}
@@ -481,15 +806,19 @@ function LoginPage() {
   const {data, isLoading, isError, error, refetch} = useDrafts();
         const [search, setSearch] = useState('');
         const [filter, setFilter] = useState('All');
+        const [docxOpen, setDocxOpen] = useState(false);
+        const [, setPath] = useLocation();
   const draftsList = useMemo(() => (Array.isArray(data) ? data : []).filter((draft) => draft.title.toLowerCase().includes(search.toLowerCase()) && (filter === 'All' || draft.status === filter)), [data, search, filter]);
-        return <div className="page-enter"><PageHead eyebrow="Content workspace" title="Drafts" sub="Search the work in progress. Every version can be traced back to a decision." action={<Link href="/drafts/new" className="inline-flex items-center gap-2 rounded-xl bg-teal-300 px-4 py-3 text-sm font-extrabold text-slate-950 transition hover:-translate-y-1"><Plus size={15} />New draft</Link>} />
+        return <div className="page-enter">
+          <DocxUploadModal open={docxOpen} onClose={() => setDocxOpen(false)} onCreated={(id) => setPath(`/drafts/${id}`)} />
+          <PageHead eyebrow="Content workspace" title="Drafts" sub="Search the work in progress. Every version can be traced back to a decision." action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => setDocxOpen(true)} className="px-4 py-3 text-xs"><Upload size={14} />Upload .docx</Button><Link href="/drafts/new" className="inline-flex items-center gap-2 rounded-xl bg-teal-300 px-4 py-3 text-sm font-extrabold text-slate-950 transition hover:-translate-y-1"><Plus size={15} />New draft</Link></div>} />
           <Glass className="mb-4 flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between"><label className="flex h-10 min-w-0 items-center gap-2 rounded-xl border border-border bg-background/45 px-3 sm:w-80"><Search size={15} className="text-muted-foreground" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search drafts…" className="min-w-0 flex-1 bg-transparent text-xs outline-none" data-testid="input-draft-search" /></label><div className="flex gap-1 overflow-x-auto">{['All', 'Draft', 'In review', 'Changes requested', 'Approved'].map((s) => <button key={s} onClick={() => setFilter(s)} className={`whitespace-nowrap rounded-lg px-3 py-2 text-[10px] font-bold ${filter === s ? 'bg-teal-300 text-slate-950' : 'text-muted-foreground hover:bg-white/5'}`}>{s}</button>)}</div></Glass>
-          {isLoading ? <LoadingCards /> : isError ? <ApiFailure error={error} retry={() => refetch()} /> : draftsList.length ? <div className="grid gap-3">{draftsList.map((draft) => <DraftRow key={draft.id} draft={draft} />)}</div> : <Glass className="p-9 text-center"><FileText className="mx-auto text-violet-500" size={24} /><h2 className="display mt-3 text-xl font-bold">{search ? 'No matching drafts' : 'A blank page, with a source.'}</h2><p className="mt-2 text-sm text-muted-foreground">Start with a title and the words you want checked.</p><Link href="/drafts/new" className="mt-5 inline-flex rounded-xl bg-teal-300 px-4 py-2.5 text-sm font-bold text-slate-950">Create a draft</Link></Glass>}
+          {isLoading ? <LoadingCards /> : isError ? <ApiFailure error={error} retry={() => refetch()} /> : draftsList.length ? <div className="grid gap-3">{draftsList.map((draft) => <DraftRow key={draft.id} draft={draft} />)}</div> : <Glass className="p-9 text-center"><FileText className="mx-auto text-violet-500" size={24} /><h2 className="display mt-3 text-xl font-bold">{search ? 'No matching drafts' : filter === 'Approved' ? 'No approved drafts yet' : 'A blank page, with a source.'}</h2><p className="mt-2 text-sm text-muted-foreground">{filter === 'Approved' ? 'Once a reviewer approves a submitted draft in the Review Queue, the locked version appears here.' : 'Start with a title and the words you want checked.'}</p><Link href="/drafts/new" className="mt-5 inline-flex rounded-xl bg-teal-300 px-4 py-2.5 text-sm font-bold text-slate-950">Create a draft</Link></Glass>}
         </div>;
 }
         function DraftRow({draft}: {draft: Draft }) {
   const tone = draft.status === 'Approved' ? 'teal' : draft.status === 'In review' ? 'violet' : draft.status === 'Changes requested' ? 'amber' : 'neutral';
-        return <Link href={`/drafts/${draft.id}`} className="glass glass-hover grid gap-4 rounded-[1.4rem] p-5 sm:grid-cols-[1fr_auto] sm:items-center" data-testid={`card-draft-${draft.id}`}><div className="flex min-w-0 items-center gap-4"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-violet-300/10 text-violet-600 dark:text-violet-200"><FileText size={18} /></span><div className="min-w-0"><h3 className="truncate font-bold">{draft.title}</h3><p className="mt-1 text-[10px] text-muted-foreground">DRAFT v{draft.version} <span className="mx-2">·</span> Updated {time(draft.updated_at)}</p></div></div><div className="flex items-center gap-3 pl-[60px] sm:pl-0"><Tag tone={tone}>{draft.status}</Tag><span className="rounded-lg border border-border bg-background/40 px-2.5 py-1.5 text-[10px] text-muted-foreground">{draft.findings_count ?? 0} findings</span><ArrowRight size={15} className="text-muted-foreground" /></div></Link>;
+        return <Link href={`/drafts/${draft.id}`} className="glass glass-hover grid gap-4 rounded-[1.4rem] p-5 sm:grid-cols-[1fr_auto] sm:items-center" data-testid={`card-draft-${draft.id}`}><div className="flex min-w-0 items-center gap-4"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-violet-300/10 text-violet-600 dark:text-violet-200"><FileText size={18} /></span><div className="min-w-0"><h3 className="truncate font-bold">{draft.title}</h3><p className="mt-1 text-[10px] text-muted-foreground">DRAFT v{draft.version} <span className="mx-2">·</span> Updated {time(draft.updated_at)}</p></div></div><div className="flex items-center gap-3 pl-[60px] sm:pl-0"><Tag tone={tone}>{draft.status}</Tag><span className="rounded-lg border border-border bg-background/40 px-2.5 py-1.5 text-[10px] text-muted-foreground">{draft.findings_count ?? 0} {(draft.findings_count ?? 0) === 1 ? 'finding' : 'findings'}</span><ArrowRight size={15} className="text-muted-foreground" /></div></Link>;
 }
 
         function NewDraftPage() {
@@ -498,12 +827,31 @@ function LoginPage() {
         const form = useForm<{ title: string; text: string; acknowledge: boolean }>({resolver: zodResolver(draftSchema), defaultValues: {title: '', text: '', acknowledge: false } });
   const loadFile = async (file?: File) => {
     if (!file) return;
-        const extension = file.name.split('.').pop()?.toLowerCase();
-        if (extension === 'docx') {toast('DOCX upload is planned for Round 3. Paste text or use a .md/.txt file for now.'); return; }
-        if (!['md', 'txt'].includes(extension || '')) {toast.error('Choose a .md or .txt file.'); return; }
-        const text = await file.text();
-        form.setValue('title', file.name, {shouldValidate: true }); form.setValue('text', text, {shouldValidate: true });
-        toast.success(`${file.name} loaded`);
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (extension === 'doc') {
+      toast.error('Legacy .doc format is not supported. Please save or export your document as a modern .docx file.');
+      return;
+    }
+    if (extension === 'docx') {
+      try {
+        toast('Extracting text, tables, and headers from .docx…');
+        const parsed = await api.parseDocx(file);
+        form.setValue('title', parsed.filename, { shouldValidate: true });
+        form.setValue('text', parsed.text, { shouldValidate: true });
+        toast.success(`Extracted ${parsed.word_count} words from ${file.name}`);
+      } catch (err: any) {
+        toast.error(err?.message || 'Failed to extract .docx content');
+      }
+      return;
+    }
+    if (!['md', 'txt'].includes(extension || '')) {
+      toast.error('Choose a .docx, .md, or .txt file.');
+      return;
+    }
+    const text = await file.text();
+    form.setValue('title', file.name, { shouldValidate: true });
+    form.setValue('text', text, { shouldValidate: true });
+    toast.success(`${file.name} loaded`);
   };
         const submit = form.handleSubmit(async ({title, text}) => {
     try { const created = await createDraft.mutateAsync({title, text}); toast.success('Draft created'); setPath(`/drafts/${created.id}`); }
@@ -519,31 +867,181 @@ function LoginPage() {
         </div>;
 }
 
+        const DISMISSAL_REASON_OPTIONS = [
+          "Rule is too rigid or ambiguous for this context",
+          "Pre-approved legal or marketing campaign exception",
+          "AI misidentified context or technical nuance",
+          "Customer testimonial / verbatim quotation",
+          "Factual claim has alternate verified source",
+          "Other reason (provide context below)",
+        ];
+
         function FindingCard({finding, draftId, index, canResolve}: {finding: Finding; draftId: string; index: number; canResolve: boolean }) {
   const decision = useDecision(draftId);
-        const [editOpen, setEditOpen] = useState(false);
-        const [dismissOpen, setDismissOpen] = useState(false);
-        const form = useForm<{ edited_fix: string }>({resolver: zodResolver(editSchema), defaultValues: {edited_fix: finding.suggested_fix } });
-        const dismissForm = useForm<{ reason: string }>({resolver: zodResolver(dismissSchema), defaultValues: {reason: '' } });
+  const [editOpen, setEditOpen] = useState(false);
+  const [dismissOpen, setDismissOpen] = useState(false);
+  const [dismissCategory, setDismissCategory] = useState(DISMISSAL_REASON_OPTIONS[0]);
+  const [dismissDetails, setDismissDetails] = useState('');
+  const form = useForm<{ edited_fix: string }>({resolver: zodResolver(editSchema), defaultValues: {edited_fix: finding.suggested_fix } });
+
   const submitEdit = form.handleSubmit(async (values) => {
-    try {await decision.mutateAsync({ id: finding.id, action: 'edit', edited_fix: values.edited_fix }); toast.success('Edit saved to the decision log'); setEditOpen(false); }
-        catch (e) {toast.error(e instanceof Error ? e.message : 'Could not save edit'); }
+    try {
+      await decision.mutateAsync({ id: finding.id, action: 'edit', edited_fix: values.edited_fix });
+      toast.success('Edit saved to the decision log');
+      setEditOpen(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not save edit');
+    }
   });
+
   const selected = useSession((s) => s.selectedFinding);
   const setSelected = useSession((s) => s.setSelectedFinding);
+
   const act = async (action: 'accept' | 'dismiss', reason?: string) => {
-    try {await decision.mutateAsync({ id: finding.id, action, ...(action === 'dismiss' ? { reason } : {}) }); toast.success(action === 'accept' ? 'Suggested fix accepted' : 'Finding dismissed with reason'); setDismissOpen(false); dismissForm.reset(); }
-        catch (e) {toast.error(e instanceof Error ? e.message : 'Decision failed'); }
+    try {
+      await decision.mutateAsync({ id: finding.id, action, ...(action === 'dismiss' ? { reason } : {}) });
+      toast.success(action === 'accept' ? 'Suggested fix accepted' : 'Finding dismissed with reason');
+      setDismissOpen(false);
+      setDismissDetails('');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Decision failed');
+    }
   };
-        const submitDismiss = dismissForm.handleSubmit(({reason}) => act('dismiss', reason));
-        const resolved = finding.status !== 'open';
-        const tone = finding.severity === 'high' ? 'rose' : finding.severity === 'medium' ? 'amber' : 'teal';
-        return <Glass tabIndex={0} onClick={() => setSelected(finding.id)} onKeyDown={(event) => { if (event.target !== event.currentTarget || resolved || !canResolve) return; const key = event.key.toLowerCase(); if (key === 'a') void act('accept'); if (key === 'e') setEditOpen(true); if (key === 'd') setDismissOpen(true); }} className={`p-4 transition ${resolved ? 'opacity-65' : ''} ${selected === finding.id ? 'ring-1 ring-teal-300/45' : ''}`} data-testid={`card-finding-${finding.id}`}><div className="flex items-start justify-between gap-3"><div className="flex items-center gap-2"><span className="mono grid h-7 w-7 place-items-center rounded-lg bg-violet-300/10 text-[10px] text-violet-600 dark:text-violet-200">{index + 1}</span><span className="text-sm font-bold">{finding.type}</span></div><div className="flex flex-wrap justify-end gap-1.5"><Tag tone={tone}>{finding.severity}</Tag><Tag tone={finding.source === 'ai' ? 'violet' : 'teal'}>{finding.source === 'ai' ? 'AI-assisted' : 'Rule-based'}</Tag></div></div>
-          <div className="mt-4"><Eyebrow>Exact excerpt</Eyebrow><p className={`mt-2 rounded-xl border px-3 py-2.5 font-mono text-xs ${finding.severity === 'high' ? 'border-rose-300/15 bg-rose-300/[.07]' : 'border-amber-300/15 bg-amber-300/[.06]'}`}>“{finding.excerpt}”</p></div>
-          <div className="mt-4"><Eyebrow>Reason & source</Eyebrow><p className="mt-1 text-xs leading-5 text-muted-foreground">{finding.reason}</p><div className="mt-2 flex flex-wrap gap-2"><Tag tone="violet">{finding.source_ref_id}</Tag>{finding.confidence < .8 && <Tag tone="amber">Needs human review</Tag>}{finding.fix_needs_human && <Tag tone="amber">Numbers guarded</Tag>}{finding.source_ref_id === 'FACT-11' && <Tag tone="rose">Outdated fact</Tag>}</div></div>
-          <div className="mt-4 rounded-xl bg-background/45 p-3"><Eyebrow>Intent-preserving fix</Eyebrow><p className="mt-2 text-xs"><span className="text-muted-foreground line-through">{finding.excerpt}</span><span className="mx-2">→</span><span className="font-semibold text-teal-600 dark:text-teal-200">{finding.suggested_fix}</span></p>{finding.fix_needs_human && <p className="mt-2 text-[10px] text-amber-700 dark:text-amber-200">Numbers and names are guarded; changes go to a human.</p>}</div>
-          {resolved ? <div className="mt-4 rounded-lg bg-teal-300/10 px-3 py-2 text-xs font-bold text-teal-700 dark:text-teal-200">{finding.status === 'dismissed' ? 'Dismissed with reason' : 'Decision recorded'}</div> : <div className="mt-4"><Eyebrow>Human decision</Eyebrow>{!canResolve && <p className="mt-2 text-[10px] text-muted-foreground">Creator-only decision. Switch to a Creator role to resolve findings.</p>}{editOpen ? <form onSubmit={submitEdit} className="mt-3 grid gap-2"><TextArea label="Edit the proposed fix" rows={2} {...form.register('edited_fix')} error={form.formState.errors.edited_fix?.message} data-testid={`input-edit-fix-${finding.id}`} /><div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button><Button type="submit" disabled={decision.isPending}>Save edit</Button></div></form> : dismissOpen ? <form onSubmit={submitDismiss} className="mt-3 grid gap-2"><TextArea label="Why is this finding not applicable? (10 characters minimum)" rows={2} {...dismissForm.register('reason')} error={dismissForm.formState.errors.reason?.message} data-testid={`input-dismiss-reason-${finding.id}`} /><div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setDismissOpen(false)}>Cancel</Button><Button type="submit" variant="danger">Confirm dismiss</Button></div></form> : <div className="mt-3 flex flex-wrap gap-2"><Button onClick={() => act('accept')} disabled={decision.isPending || !canResolve} className="px-3 py-2 text-[10px]" data-testid={`button-accept-${finding.id}`}><Check size={13} />Accept</Button><Button variant="quiet" onClick={() => setEditOpen(true)} disabled={!canResolve} className="px-3 py-2 text-[10px]" data-testid={`button-edit-${finding.id}`}>Edit</Button><Button variant="quiet" onClick={() => setDismissOpen(true)} disabled={!canResolve} className="px-3 py-2 text-[10px]" data-testid={`button-dismiss-${finding.id}`}>Dismiss</Button><span className="ml-auto self-center text-[9px] text-muted-foreground">A · E · D</span></div>}</div>}
-        </Glass>;
+
+  const handleConfirmDismiss = (e: React.FormEvent) => {
+    e.preventDefault();
+    const finalReason = dismissDetails.trim() ? `${dismissCategory}: ${dismissDetails.trim()}` : dismissCategory;
+    act('dismiss', finalReason);
+  };
+
+  const resolved = finding.status !== 'open';
+  const tone = finding.severity === 'high' ? 'rose' : finding.severity === 'medium' ? 'amber' : 'teal';
+  const isFactExpired = finding.source_ref_id === 'FACT-03' || finding.source_ref_id === 'FACT-11';
+
+  return (
+    <Glass
+      tabIndex={0}
+      onClick={() => setSelected(finding.id)}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget || resolved || !canResolve) return;
+        const key = event.key.toLowerCase();
+        if (key === 'a') void act('accept');
+        if (key === 'e') setEditOpen(true);
+        if (key === 'd') setDismissOpen(true);
+      }}
+      className={`p-4 transition ${resolved ? 'opacity-65' : ''} ${selected === finding.id ? 'ring-1 ring-teal-300/45' : ''}`}
+      data-testid={`card-finding-${finding.id}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="mono grid h-7 w-7 place-items-center rounded-lg bg-violet-300/10 text-[10px] text-violet-600 dark:text-violet-200">
+            {index + 1}
+          </span>
+          <span className="text-sm font-bold">{finding.type}</span>
+        </div>
+        <div className="flex flex-wrap justify-end gap-1.5">
+          <Tag tone={tone}>{finding.severity}</Tag>
+          <Tag tone={finding.source === 'ai' ? 'violet' : 'teal'}>{finding.source === 'ai' ? 'AI-assisted' : 'Rule-based'}</Tag>
+          {isFactExpired && <Tag tone="rose">⚠️ Expired Fact Cited</Tag>}
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <Eyebrow>Exact excerpt</Eyebrow>
+        <p className={`mt-2 rounded-xl border px-3 py-2.5 font-mono text-xs ${finding.severity === 'high' ? 'border-rose-300/15 bg-rose-300/[.07]' : 'border-amber-300/15 bg-amber-300/[.06]'}`}>
+          “{finding.excerpt}”
+        </p>
+      </div>
+
+      <div className="mt-4">
+        <Eyebrow>Reason & source</Eyebrow>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">{finding.reason}</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Tag tone="violet">{finding.source_ref_id}</Tag>
+          {finding.confidence < .8 && <Tag tone="amber">Needs human review</Tag>}
+          {finding.fix_needs_human && <Tag tone="amber">Numbers guarded</Tag>}
+          {isFactExpired && <Tag tone="rose">Source overdue re-verification</Tag>}
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-xl bg-background/45 p-3">
+        <Eyebrow>Intent-preserving fix</Eyebrow>
+        <p className="mt-2 text-xs">
+          <span className="text-muted-foreground line-through">{finding.excerpt}</span>
+          <span className="mx-2">→</span>
+          <span className="font-semibold text-teal-600 dark:text-teal-200">{finding.suggested_fix}</span>
+        </p>
+        {finding.fix_needs_human && <p className="mt-2 text-[10px] text-amber-700 dark:text-amber-200">Numbers and names are guarded; changes go to a human.</p>}
+      </div>
+
+      {resolved ? (
+        <div className="mt-4 rounded-lg bg-teal-300/10 px-3 py-2 text-xs font-bold text-teal-700 dark:text-teal-200">
+          {finding.status === 'dismissed' ? 'Dismissed with reason' : 'Decision recorded'}
+        </div>
+      ) : (
+        <div className="mt-4">
+          <Eyebrow>Human decision</Eyebrow>
+          {!canResolve && (
+            <p className="mt-2 text-[10px] text-muted-foreground">Creator-only decision. Switch to a Creator role to resolve findings.</p>
+          )}
+
+          {editOpen ? (
+            <form onSubmit={submitEdit} className="mt-3 grid gap-2">
+              <TextArea label="Edit the proposed fix" rows={2} {...form.register('edited_fix')} error={form.formState.errors.edited_fix?.message} data-testid={`input-edit-fix-${finding.id}`} />
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={decision.isPending}>Save edit</Button>
+              </div>
+            </form>
+          ) : dismissOpen ? (
+            <form onSubmit={handleConfirmDismiss} className="mt-3 grid gap-3 rounded-2xl border border-rose-300/20 bg-rose-300/[.04] p-4">
+              <label className="grid gap-1.5 text-xs font-semibold text-muted-foreground">
+                Dismissal Reason (feeds Guideline Gap Radar)
+                <select
+                  value={dismissCategory}
+                  onChange={(e) => setDismissCategory(e.target.value)}
+                  className="h-10 rounded-xl border border-border bg-background px-3 text-xs text-foreground outline-none focus:border-teal-400"
+                >
+                  {DISMISSAL_REASON_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="grid gap-1.5 text-xs font-semibold text-muted-foreground">
+                Additional context / rationale (optional)
+                <textarea
+                  value={dismissDetails}
+                  onChange={(e) => setDismissDetails(e.target.value)}
+                  placeholder="Provide context for the Brand Manager to inspect on Gap Radar..."
+                  rows={2}
+                  className="w-full rounded-xl border border-border bg-background p-2.5 text-xs text-foreground outline-none focus:border-teal-400"
+                />
+              </label>
+
+              <div className="flex justify-end gap-2 pt-1">
+                <Button type="button" variant="outline" onClick={() => setDismissOpen(false)}>Cancel</Button>
+                <Button type="submit" variant="danger">Confirm Dismiss</Button>
+              </div>
+            </form>
+          ) : (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button onClick={() => act('accept')} disabled={decision.isPending || !canResolve} className="px-3 py-2 text-[10px]" data-testid={`button-accept-${finding.id}`}>
+                <Check size={13} /> Accept
+              </Button>
+              <Button variant="quiet" onClick={() => setEditOpen(true)} disabled={!canResolve} className="px-3 py-2 text-[10px]" data-testid={`button-edit-${finding.id}`}>
+                Edit
+              </Button>
+              <Button variant="quiet" onClick={() => setDismissOpen(true)} disabled={!canResolve} className="px-3 py-2 text-[10px]" data-testid={`button-dismiss-${finding.id}`}>
+                Dismiss (reason)
+              </Button>
+              <span className="ml-auto self-center text-[9px] text-muted-foreground">A · E · D</span>
+            </div>
+          )}
+        </div>
+      )}
+    </Glass>
+  );
 }
 
         function GateStepper({dropped}: {dropped: {candidate: string; failed_gate: number; why: string }[] }) {
@@ -641,9 +1139,11 @@ function LoginPage() {
           catch (e) {toast.error(e instanceof Error ? e.message : 'Could not request changes'); }
   });
           const findingsQuery = useFindings(draft?.id || '');
-          return <div className="page-enter"><PageHead eyebrow="Reviewer desk" title="Review with the full context." sub="See the change, inspect the evidence, leave a note, and make the call." />
+          return <div className="page-enter">
+          <DocxUploadModal open={docxOpen} onClose={() => setDocxOpen(false)} onCreated={(id) => setPath(`/drafts/${id}`)} />
+          <PageHead eyebrow="Reviewer desk" title="Review with the full context." sub="See the change, inspect the evidence, leave a note, and make the call." />
             {user?.role !== 'reviewer' && <Glass className="mb-4 border-amber-300/20 bg-amber-300/[.06] p-4"><div className="flex items-center gap-2 text-sm font-bold"><LockKeyhole size={16} />Reviewer actions are locked</div><p className="mt-1 text-xs text-muted-foreground">You are signed in as {roleName(user?.role)}. Switch to a reviewer account to approve or request changes.</p><button onClick={() => { logout(); toast.success("Signed out to switch account"); setPath("/"); }} className="mt-2 inline-block text-xs font-bold text-teal-600 dark:text-teal-300 hover:underline cursor-pointer">Switch account →</button></Glass>}
-            {isLoading ? <LoadingCards /> : isError ? <ApiFailure error={error} retry={() => refetch()} /> : pending.length ? <div className="grid gap-4 lg:grid-cols-[280px_1fr]"><Glass className="p-4"><Eyebrow>Queue · {pending.length}</Eyebrow><div className="mt-3 grid gap-2">{pending.map((item) => <button key={item.id} onClick={() => setSelected(item.id)} className={`rounded-xl border p-3 text-left ${selected === item.id ? 'border-teal-300/35 bg-teal-300/[.08]' : 'border-border hover:bg-white/5'}`}><b className="block truncate text-xs">{item.title}</b><span className="mt-1 block text-[10px] text-muted-foreground">v{item.version} · {item.findings_count ?? 0} findings</span></button>)}</div></Glass>
+            {isLoading ? <LoadingCards /> : isError ? <ApiFailure error={error} retry={() => refetch()} /> : pending.length ? <div className="grid gap-4 lg:grid-cols-[280px_1fr]"><Glass className="p-4"><Eyebrow>Queue · {pending.length}</Eyebrow><div className="mt-3 grid gap-2">{pending.map((item) => <button key={item.id} onClick={() => setSelected(item.id)} className={`rounded-xl border p-3 text-left ${selected === item.id ? 'border-teal-300/35 bg-teal-300/[.08]' : 'border-border hover:bg-white/5'}`}><b className="block truncate text-xs">{item.title}</b><span className="mt-1 block text-[10px] text-muted-foreground">v{item.version} · {item.findings_count ?? 0} {(item.findings_count ?? 0) === 1 ? 'finding' : 'findings'}</span></button>)}</div></Glass>
               {draft ? <div className="grid content-start gap-4"><Glass className="p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><Eyebrow>Submitted version · v{draft.version}</Eyebrow><h2 className="display mt-2 text-xl font-bold">{draft.title}</h2></div><Tag tone="violet">In review</Tag></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><div className="rounded-xl border border-border bg-background/35 p-4"><Eyebrow>Previous snapshot</Eyebrow><p className="mt-3 whitespace-pre-wrap text-xs leading-6 text-muted-foreground">{(draft.text || '').slice(0, 180)}</p></div><div className="rounded-xl border border-teal-300/15 bg-teal-300/[.04] p-4"><Eyebrow>Submitted draft</Eyebrow><p className="mt-3 whitespace-pre-wrap text-xs leading-6">{draft.text}</p></div></div><div className="mt-4 flex items-center gap-2 text-[10px] text-muted-foreground"><GitCompareArrows size={14} />Version diff shown from the submitted API version. Confirm changes before deciding.</div></Glass>
                 <Glass className="p-5"><div className="flex items-center justify-between"><div><Eyebrow>Finding context</Eyebrow><h3 className="display mt-1 font-bold">{findingsQuery.data?.length || 0} reported findings</h3></div><Link href={`/drafts/${draft.id}`} className="text-xs font-bold text-teal-600 dark:text-teal-200">Open full review <ArrowUpRight size={13} className="inline" /></Link></div><div className="mt-3 grid gap-2">{(findingsQuery.data || []).map((item) => <div key={item.id} className="rounded-xl border border-border bg-background/35 p-3"><div className="flex flex-wrap justify-between gap-2"><Tag tone={item.severity === 'high' ? 'rose' : 'amber'}>{item.severity}</Tag><span className="mono text-[10px] text-violet-600 dark:text-violet-200">{item.source_ref_id}</span></div><p className="mt-2 font-mono text-xs">“{item.excerpt}”</p><p className="mt-1 text-[10px] leading-5 text-muted-foreground">{item.reason}</p></div>)}{!findingsQuery.data?.length && <p className="text-xs text-muted-foreground">No findings returned for this submission.</p>}</div></Glass>
                 <Glass className="p-5"><Eyebrow>Reviewer note</Eyebrow><textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="Leave context for the decision…" className="mt-3 w-full rounded-xl border border-border bg-background/40 p-3 text-xs" data-testid="input-review-note" /><div className="mt-3 flex flex-wrap justify-end gap-2"><Button variant="outline" onClick={() => setRequestOpen(true)} disabled={user?.role !== 'reviewer'} data-testid="button-request-changes">Request changes</Button><Button onClick={approve} disabled={user?.role !== 'reviewer'} data-testid="button-approve"><LockKeyhole size={14} />Approve & lock version</Button></div>{requestOpen && <form onSubmit={request} className="mt-4 grid gap-2 rounded-xl border border-amber-300/20 bg-amber-300/[.05] p-4"><TextArea label="What should the creator change? (10 characters minimum)" rows={3} {...decisionForm.register('reason')} error={decisionForm.formState.errors.reason?.message} data-testid="input-change-reason" /><div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setRequestOpen(false)}>Cancel</Button><Button type="submit">Send changes request</Button></div></form>}</Glass>
@@ -658,7 +1158,8 @@ function LoginPage() {
           const [tableView, setTableView] = useState(false);
           const radarItems = Array.isArray(data) ? data : [];
           if (user?.role !== 'brand_manager') return <Glass className="mx-auto max-w-2xl p-8 text-center"><LockKeyhole className="mx-auto text-amber-500" /><h1 className="display mt-3 text-2xl font-bold">Gap Radar is manager-only.</h1><p className="mt-2 text-sm text-muted-foreground">Repeated dismissals help a Brand Manager find rules that may need clearer wording.</p><button onClick={() => { logout(); toast.success("Signed out to switch account"); setPath("/"); }} className="mt-5 inline-flex rounded-xl bg-teal-300 px-4 py-2.5 text-sm font-bold text-slate-950 hover:bg-teal-200 cursor-pointer">Switch account</button></Glass>;
-          return <div className="page-enter"><PageHead eyebrow="Brand governance · pattern review" title="Guideline Gap Radar" sub="Repeated dismissals can be a signal that a rule needs better examples. Fix the rule, not the person." action={<button onClick={() => setTableView(!tableView)} className="rounded-xl border border-border bg-card/50 px-4 py-2.5 text-xs font-bold hover:bg-card">{tableView ? 'Chart view' : 'Table view'}</button>} />
+          return <div className="page-enter">
+          <PageHead eyebrow="Brand governance · pattern review" title="Guideline Gap Radar" sub="Repeated dismissals can be a signal that a rule needs better examples. Fix the rule, not the person." action={<button onClick={() => setTableView(!tableView)} className="rounded-xl border border-border bg-card/50 px-4 py-2.5 text-xs font-bold hover:bg-card">{tableView ? 'Chart view' : 'Table view'}</button>} />
             {isLoading ? <LoadingCards /> : isError ? <ApiFailure error={error} retry={() => refetch()} /> : <div className="grid gap-4 lg:grid-cols-[.9fr_1.1fr]"><Glass className="p-5 sm:p-7"><div className="flex items-center justify-between"><div><Eyebrow>Dismissal patterns</Eyebrow><h2 className="display mt-2 text-xl font-bold">{tableView ? 'Rule comparison' : 'Signals from real decisions'}</h2></div><Radar size={19} className="text-violet-500" /></div>{tableView ? <div className="mt-5 overflow-x-auto"><table className="w-full text-left text-xs"><thead className="mono text-[9px] uppercase text-muted-foreground"><tr><th className="pb-3">Rule</th><th className="pb-3">Flagged</th><th className="pb-3">Dismissed</th></tr></thead><tbody>{radarItems.map((r: any) => <tr key={r.rule} className="border-t border-border"><td className="py-3 pr-2">{r.rule}</td><td>{r.flagged}</td><td>{r.dismissed}</td></tr>)}</tbody></table></div> : <div className="mt-6 grid gap-4">{radarItems.map((r: any) => <div key={r.rule}><div className="flex justify-between text-[10px]"><span className="font-bold">{r.rule}</span><span className="text-muted-foreground">{r.dismissed} / {r.flagged} dismissals</span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-background/60"><div className="h-full rounded-full bg-gradient-to-r from-teal-300 via-violet-400 to-amber-300" style={{ width: `${Math.min(100, r.flagged ? r.dismissed / r.flagged * 100 : 0)}%` }} /></div></div>)}</div>}<div className="mt-7 flex gap-4 text-[9px] text-muted-foreground"><span className="flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-violet-400" />Flagged</span><span className="flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-amber-300" />Dismissal ratio</span></div></Glass>
               <Glass className="p-5 sm:p-7"><Eyebrow>Ranked rules</Eyebrow><div className="mt-4 grid gap-3">{radarItems.map((item: any) => <div key={item.rule} className="rounded-2xl border border-border bg-background/35 p-4"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-bold">{item.rule}</h3><Tag tone={item.status === 'Possibly unclear' ? 'amber' : 'teal'}>{item.status}</Tag></div><div className="mt-3 flex flex-wrap gap-4 text-[10px] text-muted-foreground"><span>Flagged <b className="text-foreground">{item.flagged}</b></span><span>Dismissed <b className="text-foreground">{item.dismissed}</b></span></div>{item.reasons?.length > 0 && <p className="mt-3 text-[10px] leading-5 text-muted-foreground">Dismissal reasons: {item.reasons.join(' · ')}</p>}<Link href="/brand-kit" className="mt-3 inline-flex items-center gap-1 text-[10px] font-bold text-teal-600 dark:text-teal-200">Edit guideline <ArrowUpRight size={12} /></Link></div>)}</div></Glass></div>}
             <Glass className="mt-4 flex items-center gap-3 p-4"><Gauge className="text-amber-500" size={18} /><p className="text-xs text-muted-foreground">A repeated dismissal is a signal to inspect the guideline—not a score of an individual.</p></Glass>
@@ -674,7 +1175,8 @@ function LoginPage() {
     const csv = [['who','role','action','target','timestamp'], ...rows.map((r) => [r.who,r.role,r.action,r.target,r.timestamp])].map((line) => line.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(',')).join('\n');
           const href = URL.createObjectURL(new Blob([csv], {type: 'text/csv' })); const link = document.createElement('a'); link.href = href; link.download = 'citecheck-audit.csv'; link.click(); URL.revokeObjectURL(href);
   };
-          return <div className="page-enter"><PageHead eyebrow="Traceability" title="Every decision is logged." sub="A filterable record of the people, roles, actions, and content behind each review." action={<Button variant="outline" onClick={exportCSV} disabled={!rows.length} data-testid="button-export-audit"><Download size={15} />Export CSV</Button>} />
+          return <div className="page-enter">
+          <PageHead eyebrow="Traceability" title="Every decision is logged." sub="A filterable record of the people, roles, actions, and content behind each review." action={<Button variant="outline" onClick={exportCSV} disabled={!rows.length} data-testid="button-export-audit"><Download size={15} />Export CSV</Button>} />
             <Glass className="mb-4 flex flex-wrap items-center justify-between gap-3 p-3"><label className="flex h-10 min-w-0 items-center gap-2 rounded-xl border border-border bg-background/45 px-3 sm:w-80"><Search size={14} className="text-muted-foreground" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Filter the audit log…" className="min-w-0 flex-1 bg-transparent text-xs outline-none" data-testid="input-audit-filter" /></label><span className="text-[10px] text-muted-foreground">Background refresh enabled</span></Glass>
             {isLoading ? <LoadingCards /> : isError ? <ApiFailure error={error} retry={() => refetch()} /> : <><div className="hidden overflow-hidden rounded-3xl border border-border bg-card/40 md:block"><table className="w-full text-left text-xs"><thead className="bg-white/[.04] text-[9px] uppercase tracking-widest text-muted-foreground"><tr>{['Who', 'Role', 'Action', 'Target', 'Timestamp'].map((h) => <th key={h} className="px-4 py-4 font-medium">{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.id} className="border-t border-border/70 hover:bg-white/[.025]" data-testid={`row-audit-${row.id}`}><td className="px-4 py-4 font-bold">{row.who}</td><td className="px-4 py-4"><Tag>{roleName(row.role)}</Tag></td><td className="px-4 py-4">{row.action}</td><td className="px-4 py-4 text-muted-foreground">{row.target}</td><td className="px-4 py-4 text-muted-foreground">{new Date(row.timestamp).toLocaleString()}</td></tr>)}</tbody></table></div><div className="grid gap-3 md:hidden">{rows.map((row) => <Glass key={row.id} className="p-4"><div className="flex items-center justify-between"><b className="text-sm">{row.who}</b><Tag>{roleName(row.role)}</Tag></div><p className="mt-2 text-xs">{row.action}</p><p className="mt-1 text-[10px] text-muted-foreground">{row.target}</p><p className="mono mt-3 text-[9px] text-muted-foreground">{new Date(row.timestamp).toLocaleString()}</p></Glass>)}</div>{!rows.length && <Glass className="mt-3 p-7 text-center text-sm text-muted-foreground">No audit entries match that filter.</Glass>}</>}
           </div>;
@@ -690,13 +1192,97 @@ function LoginPage() {
           ['07', 'Learn', 'Dismissals feed the Gap Radar so unclear rules can be improved.', 'Brand Manager'],
           ];
           function HowItWorksPage() {
-  return <div className="page-enter"><PageHead eyebrow="A transparent workflow" title="AI suggests. Humans decide." sub="Seven explicit steps, two human checkpoints, and evidence attached all the way through." />
-            <Glass className="mb-5 p-5 sm:p-7"><div className="flex flex-wrap items-center justify-between gap-3"><div><Eyebrow>Verification pipeline</Eyebrow><h2 className="display mt-2 text-xl font-bold">From draft text to verified findings</h2></div><Tag tone="violet">5 evidence gates</Tag></div><div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-5">{['Draft text', 'Rules engine', 'LLM reviewer', 'Verifier', 'Verified findings'].map((name, index) => <div key={name} className="relative rounded-xl border border-border bg-background/40 p-3"><span className="mono text-[9px] text-teal-600 dark:text-teal-200">0{index + 1}</span><div className="mt-2 text-xs font-bold">{name}</div>{index < 4 && <ArrowRight size={13} className="absolute -right-2 top-1/2 z-10 hidden -translate-y-1/2 text-muted-foreground sm:block" />}</div>)}</div><p className="mt-4 text-[10px] leading-5 text-muted-foreground">Draft text and only relevant clauses go to an external AI service. Candidate findings without supported provenance are dropped before people see them.</p></Glass>
-            <div className="relative ml-2 grid gap-3 border-l border-teal-300/25 pl-6 sm:ml-6 sm:pl-9">{workflow.map(([n, title, desc, owner]) => <div key={n} className="relative"><span className="absolute -left-[31px] top-5 grid h-8 w-8 place-items-center rounded-xl border border-teal-300/25 bg-background text-[10px] font-bold text-teal-600 dark:text-teal-200 sm:-left-[44px]">{n}</span><Glass className={`glass-hover grid gap-4 p-4 sm:grid-cols-[1fr_auto] sm:items-center sm:p-5 ${owner.includes('CHECKPOINT') ? 'border-amber-300/25' : ''}`}><div><div className="flex items-center gap-2"><h3 className="display text-lg font-bold">{title}</h3>{owner.includes('CHECKPOINT') && <Tag tone="amber">Human checkpoint</Tag>}</div><p className="mt-2 text-xs leading-6 text-muted-foreground">{desc}</p></div><span className={`mono text-[9px] uppercase tracking-wider ${owner.includes('CHECKPOINT') ? 'text-amber-600 dark:text-amber-200' : 'text-muted-foreground'}`}>{owner}</span></Glass></div>)}</div>
-            <div className="mt-8 grid gap-4 md:grid-cols-3">{[['Creator', 'Catch issues in the copy. Keep the intent.'], ['Brand Manager', 'Keep facts current and rules clear.'], ['Reviewer', 'Make the final call with context.']].map(([role, desc]) => <Glass key={role} className="p-5"><Eyebrow>For the {role}</Eyebrow><p className="display mt-2 text-lg font-bold">{desc}</p></Glass>)}</div>
-            <Glass className="mt-5 grid gap-5 p-6 sm:grid-cols-3 sm:p-7"><div><Eyebrow>Round 2 core</Eyebrow><p className="mt-2 text-sm font-bold">Brand kit · draft review · human decisions · audit history</p></div><div><Eyebrow>Round 3</Eyebrow><p className="mt-2 text-sm font-bold">DOCX upload · Gap Radar · verifier hardening</p></div><div><Eyebrow>Future scope</Eyebrow><p className="mt-2 text-sm font-bold">Image and video review · SSO · CMS · multi-language · Google Docs · Slack</p></div></Glass>
-            <Glass className="mt-5 border-violet-300/20 bg-violet-300/[.06] p-5"><Eyebrow>Illustrative example</Eyebrow><p className="mt-2 text-sm leading-6">A verifier drops a candidate citing FACT-42 because it does not exist in the kit. A cashback claim pointing to overdue FACT-11 pauses for a person. Unsupported claims remain explicitly unverified.</p></Glass>
-          </div>;
+  const gates = [
+    { num: 'Gate 1', title: 'Strict JSON Schema', desc: 'Validates field types, ranges, enums, and required properties. Rejects unparseable candidate outputs immediately.' },
+    { num: 'Gate 2', title: 'Brand Kit Database Match', desc: 'Confirms that the cited Fact ID (FACT-XX) or Guideline ID actually exists in the active Brand Kit database. Hallucinated codes are dropped.' },
+    { num: 'Gate 3', title: 'Exact Quote Match', desc: 'Normalizes whitespace and smart quotes, then verifies that the exact excerpt exists verbatim in the draft. Hallucinated quotes are dropped.' },
+    { num: 'Gate 4', title: 'Human Guardrails', desc: 'Extracts numbers, percentages, currency ($/₹), and dates from both excerpt and fix. If any values differ, flags for mandatory human sign-off.' },
+    { num: 'Gate 5', title: 'Fact Freshness & Fallback', desc: 'Checks fact review expiration dates. Overdue facts or confidence < 0.80 escalate to human reviewer review.' },
+  ];
+
+  return (
+    <div className="page-enter">
+      <PageHead
+        eyebrow="Architectural Transparency"
+        title="AI suggests. Humans decide."
+        sub="Seven explicit steps, two mandatory human checkpoints, and cryptographic evidence grounding."
+      />
+
+      <Glass className="mb-6 p-5 sm:p-7">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <Eyebrow>Governance Pipeline</Eyebrow>
+            <h2 className="display mt-1 text-xl font-bold">The 5 Pipeline Stages</h2>
+          </div>
+          <Tag tone="teal">5 pipeline stages</Tag>
+        </div>
+        <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-5">
+          {['Draft text (.docx / .md)', 'Deterministic rules', 'LLM reviewer', 'Five-gate verifier', 'Verified findings UI'].map((name, index) => (
+            <div key={name} className="relative rounded-2xl border border-border bg-background/50 p-4">
+              <span className="mono text-[10px] text-teal-600 dark:text-teal-300 font-bold">STAGE 0{index + 1}</span>
+              <div className="mt-2 text-xs font-bold text-foreground">{name}</div>
+              {index < 4 && (
+                <ArrowRight size={14} className="absolute -right-2.5 top-1/2 z-10 hidden -translate-y-1/2 text-muted-foreground sm:block" />
+              )}
+            </div>
+          ))}
+        </div>
+        <p className="mt-4 text-xs leading-6 text-muted-foreground">
+          Every candidate finding produced by the dual analysis engine must pass through the automated Five-Gate Evidence Verifier before reaching human eyes.
+        </p>
+      </Glass>
+
+      <Glass className="mb-8 border-violet-300/30 bg-violet-300/[.06] p-5 sm:p-7">
+        <div className="flex items-center justify-between">
+          <div>
+            <Eyebrow>Zero-Hallucination Core</Eyebrow>
+            <h2 className="display mt-1 text-xl font-bold">The Five Automated Evidence Gates</h2>
+          </div>
+          <Tag tone="violet">Evidence verifier</Tag>
+        </div>
+        <div className="mt-6 grid gap-3 sm:grid-cols-5">
+          {gates.map((g) => (
+            <div key={g.num} className="rounded-2xl border border-border/80 bg-background/60 p-4">
+              <span className="mono text-[10px] font-bold text-violet-600 dark:text-violet-300 uppercase">{g.num}</span>
+              <h4 className="mt-1.5 text-xs font-bold text-foreground">{g.title}</h4>
+              <p className="mt-2 text-[10px] leading-5 text-muted-foreground">{g.desc}</p>
+            </div>
+          ))}
+        </div>
+      </Glass>
+
+      <div className="relative ml-2 grid gap-3 border-l border-teal-300/25 pl-6 sm:ml-6 sm:pl-9">
+        {workflow.map(([n, title, desc, owner]) => (
+          <div key={n} className="relative">
+            <span className="absolute -left-[31px] top-5 grid h-8 w-8 place-items-center rounded-xl border border-teal-300/25 bg-background text-[10px] font-bold text-teal-600 dark:text-teal-200 sm:-left-[44px]">
+              {n}
+            </span>
+            <Glass className={`glass-hover grid gap-4 p-4 sm:grid-cols-[1fr_auto] sm:items-center sm:p-5 ${owner.includes('CHECKPOINT') ? 'border-amber-300/25' : ''}`}>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="display text-lg font-bold">{title}</h3>
+                  {owner.includes('CHECKPOINT') && <Tag tone="amber">Human checkpoint</Tag>}
+                </div>
+                <p className="mt-2 text-xs leading-6 text-muted-foreground">{desc}</p>
+              </div>
+              <span className={`mono text-[9px] uppercase tracking-wider ${owner.includes('CHECKPOINT') ? 'text-amber-600 dark:text-amber-200' : 'text-muted-foreground'}`}>
+                {owner}
+              </span>
+            </Glass>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-8 grid gap-4 md:grid-cols-3">
+        {[['Creator', 'Catch issues in the copy. Preserve intent. Resolve evidence.'], ['Brand Manager', 'Keep facts current. Manage expiration dates. Inspect Gap Radar.'], ['Reviewer', 'Compare version diffs. Review notes. Lock approved releases.']].map(([role, desc]) => (
+          <Glass key={role} className="p-5">
+            <Eyebrow>Role Contract · {role}</Eyebrow>
+            <p className="display mt-2 text-base font-bold text-foreground">{desc}</p>
+          </Glass>
+        ))}
+      </div>
+    </div>
+  );
 }
 
           function SettingsPage() {
@@ -705,7 +1291,8 @@ function LoginPage() {
   const reduced = useSession((s) => s.reducedMotion);
   const setReduced = useSession((s) => s.setReducedMotion);
           const [explode, setExplode] = useState(false);
-          return <div className="page-enter"><PageHead eyebrow="Your workspace" title="Settings" sub="A small set of choices to make this review room work for you." />
+          return <div className="page-enter">
+          <PageHead eyebrow="Your workspace" title="Settings" sub="A small set of choices to make this review room work for you." />
             <div className="grid gap-4 lg:grid-cols-2"><Glass className="p-5 sm:p-7"><Eyebrow>Appearance</Eyebrow><h2 className="display mt-2 text-xl font-bold">Choose your atmosphere.</h2><div className="mt-5 grid grid-cols-2 gap-3">{[['dark', 'Aurora Night', Moon], ['light', 'Frosted Day', Sun]].map(([t, label, Icon]) => <button key={String(t)} onClick={() => setTheme(t as 'dark' | 'light')} className={`flex items-center gap-3 rounded-2xl border p-4 text-left ${theme === t ? 'border-teal-300/35 bg-teal-300/[.08]' : 'border-border hover:bg-white/5'}`}><Icon size={17} className="text-teal-500" /><span><b className="block text-sm">{String(label)}</b><span className="text-[10px] text-muted-foreground">Theme</span></span>{theme === t && <Check size={15} className="ml-auto text-teal-500" />}</button>)}</div><label className="mt-5 flex items-center justify-between rounded-xl border border-border p-4"><span><b className="block text-sm">Reduced motion</b><span className="text-[10px] text-muted-foreground">Minimize transitions and ambient movement</span></span><input type="checkbox" checked={reduced} onChange={(e) => { setReduced(e.target.checked); document.documentElement.classList.toggle('reduce-motion', e.target.checked); }} className="h-4 w-4 accent-teal-400" data-testid="toggle-reduced-motion" /></label></Glass>
               <Glass className="p-5 sm:p-7"><Eyebrow>Responsible AI</Eyebrow><h2 className="display mt-2 text-xl font-bold">What leaves this room.</h2><div className="mt-5 grid gap-3">{[['External AI notice', 'Draft text and relevant clauses are sent for review.'], ['Synthetic demo content', 'Lumen Pay examples are fictional. No real customer data.'], ['Role-based access', 'Brand kit, creator, and reviewer permissions are distinct.'], ['Decision audit', 'Accept, edit, dismiss, and approvals are logged by the API.'], ['Human decision', 'AI suggestions do not publish or approve content.']].map(([title, desc]) => <div key={title} className="flex gap-3 rounded-xl bg-background/40 p-3"><CheckCheck size={15} className="mt-0.5 shrink-0 text-teal-500" /><div><b className="text-xs">{title}</b><p className="mt-1 text-[10px] leading-5 text-muted-foreground">{desc}</p></div></div>)}</div></Glass>
               <Glass className="p-5 sm:p-7"><Eyebrow>Connection</Eyebrow><h2 className="display mt-2 text-xl font-bold">API configuration</h2><div className="mt-4 grid gap-3"><label className="grid gap-1 text-[10px] font-semibold text-muted-foreground">API base URL<input value={API_BASE_URL} readOnly className="h-10 rounded-xl border border-border bg-background/40 px-3 font-mono text-xs text-foreground" /></label><div className="rounded-xl border border-violet-300/15 bg-violet-300/[.05] p-3 text-[10px] leading-5 text-muted-foreground">Fixture preview is <b className="text-foreground">{import.meta.env.VITE_USE_FIXTURES === 'true' ? 'enabled' : 'disabled'}</b>. Toggle VITE_USE_FIXTURES only for an explicit synthetic preview; otherwise API failures remain visible.</div></div></Glass>

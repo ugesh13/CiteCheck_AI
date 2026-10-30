@@ -246,6 +246,16 @@ class TestGate3ExcerptPresence:
         result = gate_3_excerpt_presence(candidate, SAMPLE_DRAFT_TEXT)
         assert result.passed is True
 
+    def test_smart_quotes_and_whitespace_normalized(self):
+        draft = 'This draft uses “AI Guardrail”   technology.'
+        candidate = CandidateFinding(
+            category="tone", severity="medium",
+            exact_excerpt='uses "AI Guardrail" technology',
+            reason="test",
+        )
+        result = gate_3_excerpt_presence(candidate, draft)
+        assert result.passed is True
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Gate 4 Tests — Intent Preservation

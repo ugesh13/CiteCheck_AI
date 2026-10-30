@@ -13,7 +13,7 @@ import re
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
 from pydantic import BaseModel, Field
 
 from app.core.database import get_supabase_client
@@ -38,11 +38,21 @@ DEFAULT_BRAND_KIT: Dict[str, Any] = {
         {"id": "GUIDE-10", "title": "Accessibility", "text": "Use short sentences and explain specialist terms.", "category": "accessibility"},
     ],
     "facts": [
-        {"id": "FACT-03", "text": "Pricing: fees are reviewed quarterly; no lifetime promises.", "source": "Lumen Pay pricing policy", "review_date": "2026-06-30", "allow_ai": True},
-        {"id": "FACT-07", "text": "Approved claims: no superlatives without proof.", "source": "Brand governance policy", "review_date": "2026-08-15", "allow_ai": True},
-        {"id": "FACT-11", "text": "Cashback up to 15% on eligible payments during the launch offer.", "source": "Launch offer terms (synthetic)", "review_date": "2025-02-01", "allow_ai": True},
-        {"id": "FACT-12", "text": "Lumen Pay supports UPI payments for everyday purchases.", "source": "Product capability sheet", "review_date": "2026-12-01", "allow_ai": True},
-        {"id": "FACT-15", "text": "Users can view their payment history in the app.", "source": "Product capability sheet", "review_date": "2026-11-01", "allow_ai": True},
+        {"id": "FACT-01", "text": "Lumen Pay is a digital wallet built for simple, secure everyday UPI payments.", "source": "Product Overview v2", "review_date": "2027-04-15", "allow_ai": True},
+        {"id": "FACT-02", "text": "Users can link bank accounts via UPI to pay merchant QR codes and contacts.", "source": "Payments Specification 2026", "review_date": "2027-05-01", "allow_ai": True},
+        {"id": "FACT-03", "text": "Pricing: fees are reviewed quarterly; no lifetime zero-fee promises.", "source": "Lumen Pay pricing policy Q3", "review_date": "2026-08-15", "allow_ai": True},
+        {"id": "FACT-04", "text": "Every payment generates an instant in-app digital receipt with UTR.", "source": "Core Payments Engine Doc", "review_date": "2027-03-10", "allow_ai": True},
+        {"id": "FACT-05", "text": "Customer support is accessible 24/7 directly within the Lumen Pay mobile application.", "source": "In-App Support SLA", "review_date": "2027-06-01", "allow_ai": True},
+        {"id": "FACT-06", "text": "Payment history and itemized monthly summaries are available in the app.", "source": "Account Features Spec", "review_date": "2027-02-28", "allow_ai": True},
+        {"id": "FACT-07", "text": "Approved claims: no superlatives without proof.", "source": "Brand governance policy 2026", "review_date": "2027-09-01", "allow_ai": True},
+        {"id": "FACT-08", "text": "Account setup requires mobile number verification and standard device binding.", "source": "Security & Onboarding Guide", "review_date": "2027-01-15", "allow_ai": True},
+        {"id": "FACT-09", "text": "Data in transit is protected using TLS 1.3 encryption across all public APIs.", "source": "Security Whitepaper 2026", "review_date": "2027-08-01", "allow_ai": True},
+        {"id": "FACT-10", "text": "Users can configure biometrics (fingerprint / Face Unlock) to authorize payments.", "source": "Authentication Architecture", "review_date": "2027-04-01", "allow_ai": True},
+        {"id": "FACT-11", "text": "Cashback up to 15% on eligible payments during the launch offer.", "source": "Launch offer terms (synthetic)", "review_date": "2026-06-30", "allow_ai": True},
+        {"id": "FACT-12", "text": "Lumen Pay supports UPI payments for everyday purchases.", "source": "Product capability sheet", "review_date": "2027-03-01", "allow_ai": True},
+        {"id": "FACT-13", "text": "Daily transaction limits follow NPCI guidelines and user-configured banking limits.", "source": "Compliance & Regulatory Manual", "review_date": "2027-07-01", "allow_ai": True},
+        {"id": "FACT-14", "text": "The app interface is available in English, with Hindi localization launching in Q1.", "source": "Localization Roadmap", "review_date": "2026-11-15", "allow_ai": False},
+        {"id": "FACT-15", "text": "Users can view their payment history in the app.", "source": "Product capability sheet", "review_date": "2026-11-20", "allow_ai": True},
     ],
     "terms": [
         {"id": "TERM-01", "banned": "UPI transaction", "preferred": "UPI payment"},
@@ -60,7 +70,7 @@ MEM_DRAFTS: Dict[str, Dict[str, Any]] = {
         "text": "Lumen Pay is India’s most trusted wallet and charges zero fees forever.",
         "version": 2,
         "status": "Changes requested",
-        "updated_at": "2026-03-14T11:20:00Z",
+        "updated_at": "2026-10-30T14:20:00Z",
         "findings_count": 2,
     },
     "draft-2": {
@@ -69,7 +79,7 @@ MEM_DRAFTS: Dict[str, Dict[str, Any]] = {
         "text": "Get cashback up to 15% on every payment this month.",
         "version": 3,
         "status": "In review",
-        "updated_at": "2026-03-13T16:05:00Z",
+        "updated_at": "2026-10-29T16:05:00Z",
         "findings_count": 1,
     },
     "draft-3": {
@@ -78,7 +88,7 @@ MEM_DRAFTS: Dict[str, Dict[str, Any]] = {
         "text": "Our military-grade security protects each UPI transaction.",
         "version": 1,
         "status": "Draft",
-        "updated_at": "2026-03-12T09:40:00Z",
+        "updated_at": "2026-10-28T09:40:00Z",
         "findings_count": 2,
     },
 }
@@ -104,9 +114,11 @@ MEM_COMMENTS: Dict[str, List[Dict[str, Any]]] = {
 }
 
 MEM_AUDIT: List[Dict[str, Any]] = [
-    {"id": "a-1", "who": "Meera Nair", "role": "creator", "action": "Submitted draft for review", "target": "launch-email.md · v3", "timestamp": "2026-03-13T16:05:00Z"},
-    {"id": "a-2", "who": "Nisha Rao", "role": "reviewer", "action": "Requested changes", "target": "app-store-listing.md · v2", "timestamp": "2026-03-13T13:48:00Z"},
-    {"id": "a-3", "who": "Arjun Mehta", "role": "brand_manager", "action": "Updated approved fact", "target": "FACT-11", "timestamp": "2026-03-12T08:10:00Z"},
+    {"id": "a-1", "who": "Meera Nair", "role": "creator", "action": "Accepted suggested fix", "target": "app-store-listing.md · F-101", "timestamp": "2026-10-30T15:10:00Z", "reason": "Replaced unapproved superlative \"most trusted wallet\"", "details": "Changed to \"a wallet built for simple, everyday payments\""},
+    {"id": "a-2", "who": "Meera Nair", "role": "creator", "action": "Dismissed finding with reason", "target": "launch-email.md · F-105", "timestamp": "2026-10-30T14:45:00Z", "reason": "Pre-approved campaign exception by Legal Counsel", "details": "Rule GUIDE-01 dismissed: Q4 launch promotional budget approved in board minutes"},
+    {"id": "a-3", "who": "Nisha Rao", "role": "reviewer", "action": "Requested changes", "target": "app-store-listing.md · v2", "timestamp": "2026-10-29T16:48:00Z", "reason": "Pricing claim needs updated review date", "details": "Comment: Please adjust the lifetime zero-fee claim before release"},
+    {"id": "a-4", "who": "Arjun Mehta", "role": "brand_manager", "action": "Flagged expired fact", "target": "Brand Kit · FACT-11", "timestamp": "2026-10-29T11:20:00Z", "reason": "Promotional campaign review date expired on 2026-06-30", "details": "Fact status changed to Needs Review"},
+    {"id": "a-5", "who": "Nisha Rao", "role": "reviewer", "action": "Approved & locked draft", "target": "security-faq.md · v1", "timestamp": "2026-10-28T10:15:00Z", "reason": "All 4 findings resolved and verified against Brand Kit", "details": "Final sign-off recorded for production release"},
 ]
 
 # ─── Pydantic Request Models ────────────────────────────────────────────────
@@ -570,23 +582,86 @@ def add_comment(draft_id: str, body: CommentInput):
 @router.get("/api/v1/gap-radar")
 @router.get("/api/v1/gap-radar/")
 def get_gap_radar():
-    """Surfaces brand guidelines with highest dismissal rates."""
+    """
+    Surfaces brand guidelines with highest dismissal rates.
+    Diagnostic Rule: Flagged as 'Unclear Policy' when triggered >= 4 times and dismissal rate >= 50%.
+    """
     return [
         {
+            "rule": "Security language",
+            "guideline_id": "GUIDE-04",
+            "guideline_code": "GUIDE-04",
+            "category": "tone",
+            "flagged": 10,
+            "accepted": 4,
+            "dismissed": 6,
+            "dismissal_rate": 60.0,
+            "status": "Unclear Policy",
+            "reasons": [
+                "Technical spec required specific cipher/TLS version",
+                "Rule is too rigid for engineer-facing API docs",
+                "Context was standard security control, not marketing hype"
+            ],
+            "recommendation": "Update guideline to clarify allowed technical descriptions (TLS 1.3, AES-256) vs marketing hype.",
+        },
+        {
             "rule": "Claims need proof",
-            "flagged": 8,
-            "dismissed": 3,
-            "reasons": ["The approved source is unclear", "This is descriptive, not a claim"],
-            "status": "Possibly unclear",
             "guideline_id": "GUIDE-01",
+            "guideline_code": "GUIDE-01",
+            "category": "claim",
+            "flagged": 14,
+            "accepted": 7,
+            "dismissed": 7,
+            "dismissal_rate": 50.0,
+            "status": "Unclear Policy",
+            "reasons": [
+                "Pre-approved campaign exception by Legal Counsel",
+                "Customer testimonial quote, not company assertion",
+                "Descriptive benefit, not an absolute claim"
+            ],
+            "recommendation": "Add explicit guidance and exemptions for quoted customer testimonials.",
+        },
+        {
+            "rule": "No lifetime promises",
+            "guideline_id": "GUIDE-09",
+            "guideline_code": "GUIDE-09",
+            "category": "claim",
+            "flagged": 6,
+            "accepted": 3,
+            "dismissed": 3,
+            "dismissal_rate": 50.0,
+            "status": "Unclear Policy",
+            "reasons": [
+                "Quarterly promotional fee lock confused with lifetime guarantee",
+                "Referencing historical launch terms"
+            ],
+            "recommendation": "Clarify boundary between temporary promotional pricing and permanent promises.",
         },
         {
             "rule": "Plainspoken confidence",
-            "flagged": 5,
-            "dismissed": 1,
-            "reasons": ["Needs clearer examples"],
-            "status": "Review pattern",
             "guideline_id": "GUIDE-02",
+            "guideline_code": "GUIDE-02",
+            "category": "tone",
+            "flagged": 9,
+            "accepted": 7,
+            "dismissed": 2,
+            "dismissal_rate": 22.2,
+            "status": "Healthy / Clear",
+            "reasons": ["Needs clearer before/after examples"],
+            "recommendation": "Guideline is well-understood; creators consistently accept suggestions.",
+        },
+        {
+            "rule": "Payments terminology",
+            "guideline_id": "GUIDE-03",
+            "guideline_code": "GUIDE-03",
+            "category": "terminology",
+            "flagged": 12,
+            "accepted": 11,
+            "dismissed": 1,
+            "dismissal_rate": 8.3,
+            "status": "Healthy / Clear",
+            "reasons": ["Third-party banking API specification"],
+            "recommendation": "High adherence (92% acceptance rate); keep as standard.",
         },
     ]
 
@@ -598,3 +673,130 @@ def get_gap_radar():
 def get_audit_log():
     """Retrieve chronologically ordered audit logs."""
     return MEM_AUDIT
+
+# ─── 8. .docx Document Parser (Round 3 Feature) ──────────────────────────────
+@router.post("/api/drafts/parse-docx")
+@router.post("/api/v1/drafts/parse-docx")
+async def parse_docx_file(file: UploadFile = File(...)):
+    """
+    Parse a Microsoft Word .docx file into clean text.
+    Validates file extension, size limit (<= 5 MB), zip integrity, and password encryption.
+    Extracts headers, body paragraphs, bullet lists, tables, and footers.
+    """
+    import io, zipfile
+    import docx
+
+    filename = file.filename or "uploaded-document.docx"
+    ext = filename.split(".")[-1].lower() if "." in filename else ""
+
+    if ext == "doc":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Legacy .doc format is not supported. Please save or export the document as a modern .docx file and re-upload.",
+        )
+    if ext != "docx":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported file format '.{ext}'. CiteCheck accepts Microsoft Word .docx files only.",
+        )
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The uploaded file is empty (0 bytes). Please upload a valid .docx document.",
+        )
+
+    # 5 MB size limit
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="File size exceeds the 5 MB limit. Please upload a smaller document.",
+        )
+
+    # Verify zip integrity (docx is a zip package)
+    if not zipfile.is_zipfile(io.BytesIO(content)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Corrupted or invalid document archive. The file does not appear to be a valid Microsoft Word .docx document.",
+        )
+
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(content))
+        namelist = zf.namelist()
+        if "EncryptedPackage" in namelist or "encryption" in str(namelist).lower():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password-protected or encrypted documents are not supported. Please remove the password and re-upload.",
+            )
+        if "word/document.xml" not in namelist:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid .docx structure: missing word/document.xml. Please ensure this is an uncorrupted Word document.",
+            )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unable to read document archive: {str(exc)}",
+        )
+
+    try:
+        doc = docx.Document(io.BytesIO(content))
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to parse document structure: {str(exc)}",
+        )
+
+    parts: list[str] = []
+    paragraph_count = 0
+    table_count = len(doc.tables)
+
+    # 1. Section Headers
+    for section in doc.sections:
+        if section.header:
+            for p in section.header.paragraphs:
+                txt = p.text.strip()
+                if txt:
+                    parts.append(txt)
+
+    # 2. Main Body Paragraphs
+    for p in doc.paragraphs:
+        txt = p.text.strip()
+        if txt:
+            parts.append(txt)
+            paragraph_count += 1
+
+    # 3. Tables (Row by row, cell by cell)
+    for table in doc.tables:
+        for row in table.rows:
+            cells = [c.text.strip() for c in row.cells if c.text.strip()]
+            if cells:
+                parts.append(" | ".join(cells))
+
+    # 4. Section Footers
+    for section in doc.sections:
+        if section.footer:
+            for p in section.footer.paragraphs:
+                txt = p.text.strip()
+                if txt:
+                    parts.append(txt)
+
+    extracted_text = "\n\n".join(parts)
+    if not extracted_text.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The uploaded .docx document contains no readable text, paragraphs, or table content.",
+        )
+
+    words = len(extracted_text.split())
+    return {
+        "filename": filename,
+        "text": extracted_text,
+        "char_count": len(extracted_text),
+        "word_count": words,
+        "paragraph_count": paragraph_count,
+        "table_count": table_count,
+    }

@@ -92,7 +92,86 @@ async function fixtureRequest(path: string, method: string, body?: any): Promise
     if (action === 'comments') return structuredClone(fixtureComments);
     if (action === 'diff') return { from: 1, to: 2, before: versions[0].text, after: versions[1].text };
   }
-  if (path === '/gap-radar') return [{ rule: 'Claims need proof', flagged: 8, dismissed: 3, reasons: ['The approved source is unclear', 'This is descriptive, not a claim'], status: 'Possibly unclear', guideline_id: 'GUIDE-01' }, { rule: 'Plainspoken confidence', flagged: 5, dismissed: 1, reasons: ['Needs clearer examples'], status: 'Review pattern', guideline_id: 'GUIDE-02' }];
+  if (path === '/gap-radar') {
+    return [
+      {
+        rule: 'Security language',
+        guideline_id: 'GUIDE-04',
+        guideline_code: 'GUIDE-04',
+        category: 'tone',
+        flagged: 10,
+        accepted: 4,
+        dismissed: 6,
+        dismissal_rate: 60.0,
+        status: 'Unclear Policy',
+        reasons: [
+          'Technical spec required specific cipher/TLS version',
+          'Rule is too rigid for engineer-facing API docs',
+          'Context was standard security control, not marketing hype',
+        ],
+        recommendation: 'Update guideline to clarify allowed technical descriptions (TLS 1.3, AES-256) vs marketing hype.',
+      },
+      {
+        rule: 'Claims need proof',
+        guideline_id: 'GUIDE-01',
+        guideline_code: 'GUIDE-01',
+        category: 'claim',
+        flagged: 14,
+        accepted: 7,
+        dismissed: 7,
+        dismissal_rate: 50.0,
+        status: 'Unclear Policy',
+        reasons: [
+          'Pre-approved campaign exception by Legal Counsel',
+          'Customer testimonial quote, not company assertion',
+          'Descriptive benefit, not an absolute claim',
+        ],
+        recommendation: 'Add explicit guidance and exemptions for quoted customer testimonials.',
+      },
+      {
+        rule: 'No lifetime promises',
+        guideline_id: 'GUIDE-09',
+        guideline_code: 'GUIDE-09',
+        category: 'claim',
+        flagged: 6,
+        accepted: 3,
+        dismissed: 3,
+        dismissal_rate: 50.0,
+        status: 'Unclear Policy',
+        reasons: [
+          'Quarterly promotional fee lock confused with lifetime guarantee',
+          'Referencing historical launch terms',
+        ],
+        recommendation: 'Clarify boundary between temporary promotional pricing and permanent promises.',
+      },
+      {
+        rule: 'Plainspoken confidence',
+        guideline_id: 'GUIDE-02',
+        guideline_code: 'GUIDE-02',
+        category: 'tone',
+        flagged: 9,
+        accepted: 7,
+        dismissed: 2,
+        dismissal_rate: 22.2,
+        status: 'Healthy / Clear',
+        reasons: ['Needs clearer before/after examples'],
+        recommendation: 'Guideline is well-understood; creators consistently accept suggestions.',
+      },
+      {
+        rule: 'Payments terminology',
+        guideline_id: 'GUIDE-03',
+        guideline_code: 'GUIDE-03',
+        category: 'terminology',
+        flagged: 12,
+        accepted: 11,
+        dismissed: 1,
+        dismissal_rate: 8.3,
+        status: 'Healthy / Clear',
+        reasons: ['Third-party banking API specification'],
+        recommendation: 'High adherence (92% acceptance rate); keep as standard.',
+      },
+    ];
+  }
   if (path === '/audit-log') return structuredClone(audit);
   return [];
 }
@@ -142,4 +221,51 @@ export const api = {
     return Array.isArray(res) ? res : [];
   },
   authConfig: () => request<{ supabase_url: string; supabase_anon_key: string }>('/auth/config'),
+  parseDocx: async (file: File): Promise<{ filename: string; text: string; char_count: number; word_count: number; paragraph_count: number; table_count: number }> => {
+    // 1. Try backend API endpoint first
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const token = useSession.getState().token;
+      const res = await fetch(`${API_BASE}/drafts/parse-docx`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+      const err = await res.json().catch(() => ({}));
+      if (err?.detail) {
+        throw new Error(err.detail);
+      }
+    } catch (e: any) {
+      if (e?.message && !e.message.includes('fetch') && !e.message.includes('NetworkError') && !e.message.includes('unreachable') && !e.message.includes('Failed to fetch')) {
+        throw e;
+      }
+    }
+
+    // 2. Client-side fallback using mammoth for static/offline preview
+    try {
+      const mammoth = await import('mammoth');
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      const text = result.value.trim();
+      if (!text) {
+        throw new Error('The uploaded .docx document contains no readable text.');
+      }
+      const words = text.split(/\s+/).filter(Boolean).length;
+      const paragraphs = text.split(/\n+/).filter(Boolean).length;
+      return {
+        filename: file.name,
+        text,
+        char_count: text.length,
+        word_count: words,
+        paragraph_count: paragraphs,
+        table_count: 0,
+      };
+    } catch (err: any) {
+      throw new Error(err?.message || 'Could not parse .docx document.');
+    }
+  },
 };

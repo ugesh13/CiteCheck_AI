@@ -30,6 +30,15 @@ from app.schemas import (
 
 # Regex for extracting numeric / percentage / date tokens
 _NUMERIC_PATTERN = re.compile(r"\b\d+(?:\.\d+)?%?\b")
+_GUARDED_TOKEN_PATTERN = re.compile(
+    r"(?:"
+    r"[$₹€£]\s*\d+(?:,\d{3})*(?:\.\d+)?|\b\d+(?:,\d{3})*(?:\.\d+)?\s*(?:INR|USD|EUR|GBP|%)\b|"
+    r"\b\d+(?:\.\d+)?%?\b|"
+    r"\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b|"
+    r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?\b"
+    r")",
+    re.IGNORECASE,
+)
 
 
 # ─── Data Structures ─────────────────────────────────────────────────────────
@@ -137,12 +146,22 @@ def gate_2_reference_verification(
     return GateResult(True), cited_fact_id, cited_guideline_id
 
 
+def _normalize_text_for_match(text: str) -> str:
+    """Normalize whitespace, smart quotes, and punctuation for robust matching."""
+    t = text.replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'").replace("«", '"').replace("»", '"')
+    t = re.sub(r"[\s\u00A0\u200B]+", " ", t)
+    return t.strip()
+
 def gate_3_excerpt_presence(candidate: CandidateFinding, draft_text: str) -> GateResult:
     """
-    Gate 3 — Confirm exact_excerpt is literally present in the draft text.
-    Case-sensitive substring match.
+    Gate 3 — Confirm exact_excerpt is present in the draft text.
+    First checks literal match; falls back to normalized whitespace/smart-quotes/case match.
     """
     if candidate.exact_excerpt in draft_text:
+        return GateResult(True)
+    norm_excerpt = _normalize_text_for_match(candidate.exact_excerpt)
+    norm_draft = _normalize_text_for_match(draft_text)
+    if norm_excerpt in norm_draft:
         return GateResult(True)
     return GateResult(False, f"Excerpt not found in draft: '{candidate.exact_excerpt[:80]}…'")
 
@@ -158,8 +177,8 @@ def gate_4_intent_preservation(candidate: CandidateFinding) -> tuple[GateResult,
     if not candidate.suggested_fix:
         return GateResult(True), False
 
-    original_tokens = set(_NUMERIC_PATTERN.findall(candidate.exact_excerpt))
-    fix_tokens = set(_NUMERIC_PATTERN.findall(candidate.suggested_fix))
+    original_tokens = set(_GUARDED_TOKEN_PATTERN.findall(candidate.exact_excerpt)) or set(_NUMERIC_PATTERN.findall(candidate.exact_excerpt))
+    fix_tokens = set(_GUARDED_TOKEN_PATTERN.findall(candidate.suggested_fix)) or set(_NUMERIC_PATTERN.findall(candidate.suggested_fix))
 
     if original_tokens and original_tokens != fix_tokens:
         return (
@@ -295,5 +314,18 @@ def run_five_gate_pipeline(
             )
         )
         stats["passed_all_gates"] += 1
+
+    # Deduplicate overlapping findings
+    seen_excerpts = set()
+    deduped: list[VerifiedFinding] = []
+    for item in verified:
+        key = _normalize_text_for_match(item.exact_excerpt).lower()
+        if key in seen_excerpts:
+            stats["dropped"] += 1
+            stats["passed_all_gates"] = max(0, stats["passed_all_gates"] - 1)
+            continue
+        seen_excerpts.add(key)
+        deduped.append(item)
+    verified = deduped
 
     return verified, stats

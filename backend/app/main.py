@@ -7,6 +7,7 @@ CORS, and health/root endpoints.
 
 from __future__ import annotations
 
+from typing import Optional
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -126,8 +127,8 @@ EMBEDDED_INDEX_HTML = """<!DOCTYPE html>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="/assets/index-C6GxkCQb.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-CecTqWCB.css">
+    <script type="module" crossorigin src="/assets/index-C8dleNKG.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-B0Y4IQUY.css">
   </head>
   <body>
     <div id="root"></div>
@@ -168,17 +169,17 @@ if os.path.isdir(frontend_dist):
         return FileResponse(os.path.join(frontend_dist, "favicon.svg"))
 
 
-@app.api_route("/", methods=["GET", "HEAD"], tags=["Frontend"])
-@app.api_route("/index.html", methods=["GET", "HEAD"], tags=["Frontend"])
-@app.api_route("/dashboard", methods=["GET", "HEAD"], tags=["Frontend"])
-@app.api_route("/drafts", methods=["GET", "HEAD"], tags=["Frontend"])
-@app.api_route("/brand-kit", methods=["GET", "HEAD"], tags=["Frontend"])
-@app.api_route("/review", methods=["GET", "HEAD"], tags=["Frontend"])
-@app.api_route("/gap-radar", methods=["GET", "HEAD"], tags=["Frontend"])
-@app.api_route("/audit", methods=["GET", "HEAD"], tags=["Frontend"])
-@app.api_route("/login", methods=["GET", "HEAD"], tags=["Frontend"])
-@app.api_route("/how-it-works", methods=["GET", "HEAD"], tags=["Frontend"])
-@app.api_route("/settings", methods=["GET", "HEAD"], tags=["Frontend"])
+@app.api_route("/", methods=["GET", "HEAD", "OPTIONS"], tags=["Frontend"])
+@app.api_route("/index.html", methods=["GET", "HEAD", "OPTIONS"], tags=["Frontend"])
+@app.api_route("/dashboard", methods=["GET", "HEAD", "OPTIONS"], tags=["Frontend"])
+@app.api_route("/drafts", methods=["GET", "HEAD", "OPTIONS"], tags=["Frontend"])
+@app.api_route("/brand-kit", methods=["GET", "HEAD", "OPTIONS"], tags=["Frontend"])
+@app.api_route("/review", methods=["GET", "HEAD", "OPTIONS"], tags=["Frontend"])
+@app.api_route("/gap-radar", methods=["GET", "HEAD", "OPTIONS"], tags=["Frontend"])
+@app.api_route("/audit", methods=["GET", "HEAD", "OPTIONS"], tags=["Frontend"])
+@app.api_route("/login", methods=["GET", "HEAD", "OPTIONS"], tags=["Frontend"])
+@app.api_route("/how-it-works", methods=["GET", "HEAD", "OPTIONS"], tags=["Frontend"])
+@app.api_route("/settings", methods=["GET", "HEAD", "OPTIONS"], tags=["Frontend"])
 def serve_frontend():
     """Serve the compiled Glassmorphic Frontend application."""
     if os.path.isdir(frontend_dist):
@@ -192,7 +193,7 @@ def serve_frontend():
 @app.api_route("/api/index.py", methods=["GET", "HEAD"], tags=["Root"])
 @app.api_route("/api/index", methods=["GET", "HEAD"], tags=["Root"])
 @app.get("/api-info", tags=["Root"])
-def root(request: Optional[Request] = None):
+def root():
     """Root API info endpoint."""
     return {
         "service": settings.app_name,
@@ -204,7 +205,7 @@ def root(request: Optional[Request] = None):
     }
 
 
-@app.api_route("/{full_path:path}", methods=["GET", "HEAD"], tags=["Frontend"])
+@app.api_route("/{full_path:path}", methods=["GET", "HEAD", "OPTIONS"], tags=["Frontend"])
 def catchall_frontend(full_path: str):
     """Fallback handler for frontend client routes and static assets."""
     if full_path.startswith("api/") or full_path in ("docs", "openapi.json", "healthz"):
