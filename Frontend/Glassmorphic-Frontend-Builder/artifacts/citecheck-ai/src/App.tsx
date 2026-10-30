@@ -135,9 +135,9 @@ function AppShell({ children }: { children: ReactNode }) {
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={async () => {
                           setUserMenu(false);
-                          logout();
+                          await logout();
                           toast.success('Signed out successfully');
                           setPath('/');
                         }}
@@ -160,7 +160,7 @@ function AppShell({ children }: { children: ReactNode }) {
           <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Toggle theme" className="rounded-xl border border-border p-2">{theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}</button>
           {user && (
             <button
-              onClick={() => { logout(); toast.success('Signed out successfully'); setPath('/'); }}
+              onClick={async () => { await logout(); toast.success('Signed out successfully'); setPath('/'); }}
               aria-label="Log out"
               title="Log out"
               className="rounded-xl border border-rose-300/30 bg-rose-500/10 p-2 text-rose-500"
@@ -786,7 +786,15 @@ function RoutedPages() {
             }
           }
         } else if (event === 'SIGNED_OUT') {
-          useSession.getState().logout();
+          try {
+            localStorage.removeItem('citecheck_token');
+            localStorage.removeItem('citecheck_user');
+            localStorage.removeItem('citecheck_oauth_role');
+            sessionStorage.clear();
+          } catch {}
+          if (useSession.getState().user || useSession.getState().token) {
+            useSession.setState({ token: null, user: null, selectedFinding: null });
+          }
         }
       });
 

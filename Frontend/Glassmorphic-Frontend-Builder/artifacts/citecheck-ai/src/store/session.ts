@@ -29,12 +29,14 @@ type SessionState = {
   theme: 'dark' | 'light';
   reducedMotion: boolean;
   setSession: (token: string, user: User) => void;
-  logout: () => void;
+  logout: () => void | Promise<void>;
   setSelectedFinding: (id: string | null) => void;
   setTheme: (theme: 'dark' | 'light') => void;
   setReducedMotion: (value: boolean) => void;
   demoRole: (role: Role) => void;
 };
+
+let isLoggingOut = false;
 
 export const useSession = create<SessionState>((set) => ({
   token: getInitialToken(),
@@ -51,18 +53,27 @@ export const useSession = create<SessionState>((set) => ({
     }
     set({ token, user });
   },
-  logout: () => {
+  logout: async () => {
+    if (isLoggingOut) return;
+    isLoggingOut = true;
     try {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
+      localStorage.removeItem('citecheck_oauth_role');
+      sessionStorage.clear();
       const sb = getSupabase();
       if (sb) {
-        sb.auth.signOut().catch(() => {});
+        // scope: 'local' clears local session storage and avoids long network hangs
+        await sb.auth.signOut({ scope: 'local' }).catch(() => {});
       }
     } catch {
       // ignore
+    } finally {
+      set({ token: null, user: null, selectedFinding: null });
+      setTimeout(() => {
+        isLoggingOut = false;
+      }, 300);
     }
-    set({ token: null, user: null });
   },
   setSelectedFinding: (selectedFinding) => set({ selectedFinding }),
   setTheme: (theme) => set({ theme }),

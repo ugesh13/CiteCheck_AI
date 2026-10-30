@@ -29,7 +29,7 @@ async function request<T>(path: string, method = 'GET', body?: unknown): Promise
   if (fixturesEnabled) return fixtureRequest(path, method, body) as Promise<T>;
   try {
     const response = await fetch(`${API_BASE}${path}`, { method, headers: headers(), ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
-    if (response.status === 401) { useSession.getState().logout(); window.location.assign('/login'); }
+    if (response.status === 401) { useSession.getState().logout(); }
     const payload = response.status === 204 ? undefined : await response.json().catch(() => ({}));
     if (!response.ok) throw normalizeError(payload, response.status);
     return payload as T;
