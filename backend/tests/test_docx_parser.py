@@ -103,3 +103,4 @@ class TestDocxParser:
         )
         assert response.status_code == 413
         assert "exceeds the 5 MB limit" in response.json()["detail"]
+

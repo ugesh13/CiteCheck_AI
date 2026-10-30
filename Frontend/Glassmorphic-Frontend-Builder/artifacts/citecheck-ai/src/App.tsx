@@ -752,7 +752,6 @@ function LoginPage() {
   };
   const remove = async (id: string) => { if (!confirm(`Delete ${id} from the brand kit?`)) return; try {await api.deleteKitItem(tab, id); await client.invalidateQueries({queryKey: keys.kit }); toast.success('Entry deleted'); } catch (e) {toast.error(e instanceof Error ? e.message : 'Delete failed'); } };
         return <div className="page-enter">
-          <DocxUploadModal open={docxOpen} onClose={() => setDocxOpen(false)} onCreated={(id) => setPath(`/drafts/${id}`)} />
           <PageHead eyebrow="Lumen Pay · Synthetic brand data" title="Brand kit" sub="The approved ground truth behind every finding. Managers own changes; everyone else can read." action={canEdit ? <Button onClick={() => { kitForm.reset({ kind: tab, title: '', text: '', source: '', review_date: '', banned: '', preferred: '', allow_ai: true }); setAddOpen(true); }} data-testid="button-add-kit-item"><Plus size={15} />Add {tab === 'facts' ? 'fact' : tab === 'terms' ? 'term' : 'guideline'}</Button> : <Tag>Read only · {roleName(user?.role)}</Tag>} />
           <Glass className="mb-4 flex flex-wrap items-center justify-between gap-3 border-teal-300/25 bg-teal-300/[.05] p-3.5 sm:p-4">
             <div className="flex items-center gap-3">
@@ -1140,7 +1139,6 @@ function LoginPage() {
   });
           const findingsQuery = useFindings(draft?.id || '');
           return <div className="page-enter">
-          <DocxUploadModal open={docxOpen} onClose={() => setDocxOpen(false)} onCreated={(id) => setPath(`/drafts/${id}`)} />
           <PageHead eyebrow="Reviewer desk" title="Review with the full context." sub="See the change, inspect the evidence, leave a note, and make the call." />
             {user?.role !== 'reviewer' && <Glass className="mb-4 border-amber-300/20 bg-amber-300/[.06] p-4"><div className="flex items-center gap-2 text-sm font-bold"><LockKeyhole size={16} />Reviewer actions are locked</div><p className="mt-1 text-xs text-muted-foreground">You are signed in as {roleName(user?.role)}. Switch to a reviewer account to approve or request changes.</p><button onClick={() => { logout(); toast.success("Signed out to switch account"); setPath("/"); }} className="mt-2 inline-block text-xs font-bold text-teal-600 dark:text-teal-300 hover:underline cursor-pointer">Switch account →</button></Glass>}
             {isLoading ? <LoadingCards /> : isError ? <ApiFailure error={error} retry={() => refetch()} /> : pending.length ? <div className="grid gap-4 lg:grid-cols-[280px_1fr]"><Glass className="p-4"><Eyebrow>Queue · {pending.length}</Eyebrow><div className="mt-3 grid gap-2">{pending.map((item) => <button key={item.id} onClick={() => setSelected(item.id)} className={`rounded-xl border p-3 text-left ${selected === item.id ? 'border-teal-300/35 bg-teal-300/[.08]' : 'border-border hover:bg-white/5'}`}><b className="block truncate text-xs">{item.title}</b><span className="mt-1 block text-[10px] text-muted-foreground">v{item.version} · {item.findings_count ?? 0} {(item.findings_count ?? 0) === 1 ? 'finding' : 'findings'}</span></button>)}</div></Glass>
