@@ -238,8 +238,8 @@ function DocxUploadModal({
       toast.error('Legacy .doc format is not supported. Please save or export your document as a modern .docx file.');
       return;
     }
-    if (ext !== 'docx') {
-      toast.error('Only Microsoft Word .docx files are accepted.');
+    if (!['docx', 'md', 'txt'].includes(ext || '')) {
+      toast.error('CiteCheck accepts .docx, .md, and .txt files.');
       return;
     }
     if (f.size > 5 * 1024 * 1024) {
@@ -254,11 +254,32 @@ function DocxUploadModal({
     setFile(f);
     setLoading(true);
     try {
-      const res = await api.parseDocx(f);
-      setExtracted(res);
-      toast.success(`Extracted ${res.word_count} words from ${f.name}`);
+      if (ext === 'docx') {
+        const res = await api.parseDocx(f);
+        setExtracted(res);
+        toast.success(`Extracted ${res.word_count} words from ${f.name}`);
+      } else {
+        const text = await f.text();
+        if (!text.trim()) {
+          toast.error('Uploaded file contains no readable text.');
+          setFile(null);
+          setExtracted(null);
+          return;
+        }
+        const words = text.split(/\s+/).filter(Boolean).length;
+        const paragraphs = text.split(/\n+/).filter(Boolean).length;
+        setExtracted({
+          filename: f.name,
+          text: text.trim(),
+          char_count: text.length,
+          word_count: words,
+          paragraph_count: paragraphs,
+          table_count: 0,
+        });
+        toast.success(`Loaded ${words} words from ${f.name}`);
+      }
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to parse .docx file.');
+      toast.error(err?.message || 'Failed to parse file.');
       setFile(null);
       setExtracted(null);
     } finally {
@@ -314,17 +335,18 @@ function DocxUploadModal({
             </p>
             <p className="mt-1 text-xs text-muted-foreground">or click below to browse from your device</p>
             <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-teal-300 px-4 py-2.5 text-xs font-bold text-slate-950 shadow hover:bg-teal-200">
-              <FileText size={15} /> Select .docx file
+              <FileText size={15} /> Select file (.docx, .md, .txt)
               <input
                 type="file"
-                accept=".docx"
+                accept=".docx,.md,.txt"
                 className="sr-only"
                 disabled={loading}
+                onClick={(e) => { (e.target as HTMLInputElement).value = ""; }}
                 onChange={(e) => e.target.files?.[0] && void handleFile(e.target.files[0])}
               />
             </label>
             <div className="mt-4 flex flex-wrap justify-center gap-2 text-[10px] text-muted-foreground">
-              <Tag tone="teal">.docx only (≤ 5MB)</Tag>
+              <Tag tone="teal">.docx / .md / .txt (≤ 5MB)</Tag>
               <Tag tone="violet">Tables parsed</Tag>
               <Tag tone="neutral">No passwords</Tag>
             </div>
@@ -750,7 +772,7 @@ function LoginPage() {
           </div>
           <Link href="/brand-kit" className="text-xs font-bold text-teal-600 dark:text-teal-200 hover:underline shrink-0">Inspect Brand Kit →</Link>
         </Glass>
-        <PageHead eyebrow={`${roleName(user?.role)} workspace`} title="Good work starts with a source." sub="A live view of drafts, decisions, and what's waiting for a human." action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => setDocxOpen(true)} className="px-4 py-3 text-xs"><Upload size={14} />Upload .docx</Button><Link href="/drafts/new" className="inline-flex items-center gap-2 rounded-xl bg-teal-300 px-4 py-3 text-sm font-extrabold text-slate-950 transition hover:-translate-y-1"><Plus size={16} />New draft</Link></div>} />
+        <PageHead eyebrow={`${roleName(user?.role)} workspace`} title="Good work starts with a source." sub="A live view of drafts, decisions, and what's waiting for a human." action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => setDocxOpen(true)} className="px-4 py-3 text-xs"><Upload size={14} />Upload document (.docx / .md)</Button><Link href="/drafts/new" className="inline-flex items-center gap-2 rounded-xl bg-teal-300 px-4 py-3 text-sm font-extrabold text-slate-950 transition hover:-translate-y-1"><Plus size={16} />New draft</Link></div>} />
         {isLoading ? <LoadingCards /> : isError ? <ApiFailure error={error} retry={() => refetch()} /> : <div className="grid gap-4 md:grid-cols-4">
           <Glass className="glass-hover col-span-2 p-5 sm:p-6"><div className="flex items-center justify-between"><Eyebrow>Draft pulse</Eyebrow><Link href="/drafts" className="text-xs font-bold text-teal-600 dark:text-teal-200">All drafts <ArrowUpRight size={14} className="inline" /></Link></div><div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">{[['Draft', statusCount('Draft'), 'text-muted-foreground'], ['In review', statusCount('In review'), 'text-violet-500'], ['Changes requested', statusCount('Changes requested'), 'text-amber-600'], ['Approved', statusCount('Approved'), 'text-teal-600']].map(([label, value, color]) => <div key={String(label)} className="rounded-2xl border border-border/70 bg-background/35 p-3"><div className={`display text-3xl font-bold ${color}`}>{isLoading ? '—' : value}</div><div className="mt-1 text-[10px] leading-4 text-muted-foreground">{label}</div></div>)}</div><div className="mt-5 flex items-center gap-2 text-[11px] text-muted-foreground"><span className="h-1.5 w-1.5 rounded-full bg-teal-300" />Live from your workspace.</div></Glass>
           <Glass className="glass-hover p-5 sm:p-6"><div className="flex items-center justify-between"><Eyebrow>Open findings</Eyebrow><Flag size={16} className="text-amber-500" /></div><div className="display mt-4 text-4xl font-bold">{openFindingCount}</div><p className="mt-2 text-xs leading-5 text-muted-foreground">Findings reported across loaded drafts. Check each excerpt before you decide.</p><Link href="/drafts" className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-teal-600 dark:text-teal-200">Review drafts <ArrowRight size={13} /></Link></Glass>
@@ -858,7 +880,7 @@ function LoginPage() {
   const draftsList = useMemo(() => (Array.isArray(data) ? data : []).filter((draft) => draft.title.toLowerCase().includes(search.toLowerCase()) && (filter === 'All' || draft.status === filter)), [data, search, filter]);
         return <div className="page-enter">
           <DocxUploadModal open={docxOpen} onClose={() => setDocxOpen(false)} onCreated={(id) => setPath(`/drafts/${id}`)} />
-          <PageHead eyebrow="Content workspace" title="Drafts" sub="Search the work in progress. Every version can be traced back to a decision." action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => setDocxOpen(true)} className="px-4 py-3 text-xs"><Upload size={14} />Upload .docx</Button><Link href="/drafts/new" className="inline-flex items-center gap-2 rounded-xl bg-teal-300 px-4 py-3 text-sm font-extrabold text-slate-950 transition hover:-translate-y-1"><Plus size={15} />New draft</Link></div>} />
+          <PageHead eyebrow="Content workspace" title="Drafts" sub="Search the work in progress. Every version can be traced back to a decision." action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => setDocxOpen(true)} className="px-4 py-3 text-xs"><Upload size={14} />Upload document (.docx / .md)</Button><Link href="/drafts/new" className="inline-flex items-center gap-2 rounded-xl bg-teal-300 px-4 py-3 text-sm font-extrabold text-slate-950 transition hover:-translate-y-1"><Plus size={15} />New draft</Link></div>} />
           <Glass className="mb-4 flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between"><label className="flex h-10 min-w-0 items-center gap-2 rounded-xl border border-border bg-background/45 px-3 sm:w-80"><Search size={15} className="text-muted-foreground" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search drafts…" className="min-w-0 flex-1 bg-transparent text-xs outline-none" data-testid="input-draft-search" /></label><div className="flex gap-1 overflow-x-auto">{['All', 'Draft', 'In review', 'Changes requested', 'Approved'].map((s) => <button key={s} onClick={() => setFilter(s)} className={`whitespace-nowrap rounded-lg px-3 py-2 text-[10px] font-bold ${filter === s ? 'bg-teal-300 text-slate-950' : 'text-muted-foreground hover:bg-white/5'}`}>{s}</button>)}</div></Glass>
           {isLoading ? <LoadingCards /> : isError ? <ApiFailure error={error} retry={() => refetch()} /> : draftsList.length ? <div className="grid gap-3">{draftsList.map((draft) => <DraftRow key={draft.id} draft={draft} />)}</div> : <Glass className="p-9 text-center"><FileText className="mx-auto text-violet-500" size={24} /><h2 className="display mt-3 text-xl font-bold">{search ? 'No matching drafts' : filter === 'Approved' ? 'No approved drafts yet' : 'A blank page, with a source.'}</h2><p className="mt-2 text-sm text-muted-foreground">{filter === 'Approved' ? 'Once a reviewer approves a submitted draft in the Review Queue, the locked version appears here.' : 'Start with a title and the words you want checked.'}</p><Link href="/drafts/new" className="mt-5 inline-flex rounded-xl bg-teal-300 px-4 py-2.5 text-sm font-bold text-slate-950">Create a draft</Link></Glass>}
         </div>;
@@ -885,6 +907,7 @@ function LoginPage() {
         const parsed = await api.parseDocx(file);
         form.setValue('title', parsed.filename, { shouldValidate: true });
         form.setValue('text', parsed.text, { shouldValidate: true });
+        form.setValue('acknowledge', true, { shouldValidate: true });
         toast.success(`Extracted ${parsed.word_count} words from ${file.name}`);
       } catch (err: any) {
         toast.error(err?.message || 'Failed to extract .docx content');
@@ -895,10 +918,20 @@ function LoginPage() {
       toast.error('Choose a .docx, .md, or .txt file.');
       return;
     }
-    const text = await file.text();
-    form.setValue('title', file.name, { shouldValidate: true });
-    form.setValue('text', text, { shouldValidate: true });
-    toast.success(`${file.name} loaded`);
+    try {
+      const text = await file.text();
+      if (!text.trim()) {
+        toast.error('Uploaded file is empty (0 bytes).');
+        return;
+      }
+      form.setValue('title', file.name, { shouldValidate: true });
+      form.setValue('text', text.trim(), { shouldValidate: true });
+      form.setValue('acknowledge', true, { shouldValidate: true });
+      const words = text.split(/\s+/).filter(Boolean).length;
+      toast.success(`${file.name} loaded (${words} words)`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not read file text.');
+    }
   };
         const submit = form.handleSubmit(async ({title, text}) => {
     try { const created = await createDraft.mutateAsync({title, text}); toast.success('Draft created'); setPath(`/drafts/${created.id}`); }
@@ -910,7 +943,7 @@ function LoginPage() {
   });
         return <div className="page-enter mx-auto max-w-4xl"><button onClick={() => setPath('/drafts')} className="mb-5 inline-flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground"><ArrowLeft size={14} />Back to drafts</button><PageHead eyebrow="New content" title="Start with the actual words." sub="Add the draft as it will appear. CiteCheck checks specific excerpts against the Lumen Pay brand kit." />
           <Glass className="mb-4 flex gap-3 border-amber-300/20 bg-amber-300/[.06] p-4 sm:p-5"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-300/15 text-amber-600 dark:text-amber-200"><ShieldAlert size={17} /></span><div><b className="text-sm">Draft text goes to an external AI service.</b><p className="mt-1 text-xs leading-5 text-muted-foreground">Only draft text and relevant clauses are sent. Review the content before continuing.</p></div></Glass>
-          <Glass className="p-5 sm:p-7"><form onSubmit={submit} className="grid gap-5" noValidate><Field label="Draft name" placeholder="e.g. app-store-listing.md" {...form.register('title')} error={form.formState.errors.title?.message} data-testid="input-new-draft-title" /><div><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><span className="text-xs font-semibold text-muted-foreground">Draft text</span><label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-[10px] font-bold hover:bg-white/5"><Upload size={13} />Choose .md / .txt<input type="file" accept=".md,.txt,.docx" className="sr-only" onChange={(e) => loadFile(e.target.files?.[0])} data-testid="input-draft-file" /></label></div><div onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); void loadFile(event.dataTransfer.files[0]); }} className="rounded-2xl transition hover:ring-1 hover:ring-teal-300/30" data-testid="drop-draft-text"><TextArea label="" rows={12} placeholder="Paste or drop a .md / .txt file here…" {...form.register('text')} error={form.formState.errors.text?.message} data-testid="input-new-draft-text" /><div className="mt-2 flex justify-between text-[10px] text-muted-foreground"><span>Markdown and plain text accepted · DOCX is Round 3</span><span>{form.watch('text')?.length || 0} / 20,000</span></div></div></div><label className={`flex items-start gap-3 rounded-xl border p-4 text-xs leading-5 ${form.formState.errors.acknowledge ? 'border-rose-400' : 'border-border'}`}><input type="checkbox" className="mt-1 accent-teal-400" {...form.register('acknowledge')} data-testid="checkbox-ai-acknowledgement" /><span><b>Required acknowledgement:</b> I understand that the draft text and relevant clauses are sent to an external AI service for review. My team makes every final decision.</span></label>{form.formState.errors.acknowledge && <span className="-mt-4 text-xs text-rose-500">{form.formState.errors.acknowledge.message}</span>}<div className="flex flex-wrap justify-end gap-2"><Button variant="outline" type="button" onClick={() => setPath('/drafts')}>Cancel</Button><Button disabled={createDraft.isPending} type="submit"><Sparkles size={15} />{createDraft.isPending ? 'Creating…' : 'Create draft'}</Button></div></form></Glass>
+          <Glass className="p-5 sm:p-7"><form onSubmit={submit} className="grid gap-5" noValidate><Field label="Draft name" placeholder="e.g. app-store-listing.md" {...form.register('title')} error={form.formState.errors.title?.message} data-testid="input-new-draft-title" /><div><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><span className="text-xs font-semibold text-muted-foreground">Draft text</span><label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-[10px] font-bold hover:bg-white/5"><Upload size={13} />Choose .md / .txt<input type="file" accept=".md,.txt,.docx" className="sr-only" onClick={(e) => { (e.target as HTMLInputElement).value = ""; }} onChange={(e) => loadFile(e.target.files?.[0])} data-testid="input-draft-file" /></label></div><div onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); void loadFile(event.dataTransfer.files[0]); }} className="rounded-2xl transition hover:ring-1 hover:ring-teal-300/30" data-testid="drop-draft-text"><TextArea label="" rows={12} placeholder="Paste or drop a .md / .txt file here…" {...form.register('text')} error={form.formState.errors.text?.message} data-testid="input-new-draft-text" /><div className="mt-2 flex justify-between text-[10px] text-muted-foreground"><span>Markdown and plain text accepted · DOCX is Round 3</span><span>{form.watch('text')?.length || 0} / 20,000</span></div></div></div><label className={`flex items-start gap-3 rounded-xl border p-4 text-xs leading-5 ${form.formState.errors.acknowledge ? 'border-rose-400' : 'border-border'}`}><input type="checkbox" className="mt-1 accent-teal-400" {...form.register('acknowledge')} data-testid="checkbox-ai-acknowledgement" /><span><b>Required acknowledgement:</b> I understand that the draft text and relevant clauses are sent to an external AI service for review. My team makes every final decision.</span></label>{form.formState.errors.acknowledge && <span className="-mt-4 text-xs text-rose-500">{form.formState.errors.acknowledge.message}</span>}<div className="flex flex-wrap justify-end gap-2"><Button variant="outline" type="button" onClick={() => setPath('/drafts')}>Cancel</Button><Button disabled={createDraft.isPending} type="submit"><Sparkles size={15} />{createDraft.isPending ? 'Creating…' : 'Create draft'}</Button></div></form></Glass>
         </div>;
 }
 
@@ -1137,7 +1170,7 @@ function LoginPage() {
           if (draftQuery.isError) return <ApiFailure error={draftQuery.error} retry={() => draftQuery.refetch()} />;
           if (!current) return <Glass className="p-8">Draft not found. <Link href="/drafts" className="text-teal-600">Back to drafts</Link></Glass>;
   const filtered = findingList.filter((f) => findingFilter === 'All' || findingFilter === 'Rules' && f.source === 'rules' || findingFilter === 'AI-assisted' && f.source === 'ai' || findingFilter === 'Needs human review' && (f.confidence < .8 || f.fix_needs_human) || findingFilter === 'Resolved' && f.status !== 'open');
-          return <div className="page-enter"><button onClick={() => history.back()} className="mb-4 inline-flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground"><ArrowLeft size={14} />Back</button><PageHead eyebrow="Draft review room" title={current.title} sub={`DRAFT v${current.version} · ${current.status}`} action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => { runReview.mutate(); toast('Running five-gate review…'); }} disabled={runReview.isPending} data-testid="button-run-review"><RefreshCw size={14} className={runReview.isPending ? 'animate-spin' : ''} />{runReview.isPending ? 'Reviewing…' : 'Run review'}</Button><Button onClick={saveVersion} data-testid="button-submit-review"><Send size={14} />Submit for review</Button></div>} />
+          return <div className="page-enter"><button onClick={() => history.back()} className="mb-4 inline-flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground"><ArrowLeft size={14} />Back</button><PageHead eyebrow="Draft review room" title={current.title} sub={`DRAFT v${current.version} · ${current.status}`} action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => { runReview.mutate(); toast('Running five-gate review…'); }} disabled={runReview.isPending} data-testid="button-run-review"><RefreshCw size={14} className={runReview.isPending ? 'animate-spin' : ''} />{runReview.isPending ? 'Reviewing…' : 'Run review'}</Button>{user?.role === 'reviewer' && current.status.toLowerCase() === 'in review' && (<Button onClick={async () => { try { await api.approve(id); await client.invalidateQueries({ queryKey: keys.draft(id) }); await client.invalidateQueries({ queryKey: keys.drafts }); await client.invalidateQueries({ queryKey: keys.audit }); toast.success(`Draft "${current.title}" approved and locked`); } catch (e: any) { toast.error(e?.message || 'Approval failed'); } }} className="bg-teal-300 font-bold text-slate-950 hover:bg-teal-200"><LockKeyhole size={14} />Approve & lock version</Button>)}<Button onClick={saveVersion} data-testid="button-submit-review"><Send size={14} />Submit for review</Button></div>} />
             <div className="mb-3 flex gap-1 rounded-xl border border-border bg-card/45 p-1 lg:hidden">{(['editor', 'findings'] as const).map((tab) => <button key={tab} onClick={() => setMobileTab(tab)} className={`flex-1 rounded-lg py-2 text-xs font-bold capitalize ${mobileTab === tab ? 'bg-teal-300 text-slate-950' : 'text-muted-foreground'}`}>{tab === 'findings' ? `Findings · ${findingList.length}` : tab}</button>)}</div>
             {!canEdit && <Glass className="mb-4 p-4"><div className="flex items-center gap-2 text-xs font-bold"><LockKeyhole size={14} />Read-only draft view</div><p className="mt-1 text-[10px] text-muted-foreground">Creator-only edits and finding decisions are disabled for this role.</p></Glass>}
             <div className="grid gap-4 lg:grid-cols-[1.02fr_.98fr]">
@@ -1164,9 +1197,16 @@ function LoginPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [requestOpen, setRequestOpen] = useState(false);
+  const [justApproved, setJustApproved] = useState<{ id: string; title: string; version: number } | null>(null);
   const client = useQueryClient();
   const pending = draftsList.filter((draft) => draft.status.toLowerCase() === 'in review');
-  useEffect(() => { if (!selected && pending.length) setSelected(pending[0].id); }, [selected, pending]);
+  useEffect(() => {
+    if (pending.length && (!selected || !pending.some((d) => d.id === selected))) {
+      setSelected(pending[0].id);
+    } else if (!pending.length) {
+      setSelected(null);
+    }
+  }, [selected, pending]);
   const draft = pending.find((item) => item.id === selected);
   const reviewDecision = useReviewDecision(selected || '');
   const reviewerComment = useAddComment(selected || '');
@@ -1187,14 +1227,24 @@ function LoginPage() {
     await reviewerComment.mutateAsync({ text: note.trim() });
   };
   const approve = async () => {
-    if (user?.role !== 'reviewer') { toast.error('Only reviewers can approve a draft.'); return; }
+    if (user?.role !== 'reviewer') {
+      toast.error('Only reviewers can approve a draft. Click "Switch to Nisha (Reviewer)" above.');
+      return;
+    }
     if (!draft) return;
     try {
-      await saveReviewerNote();
+      if (note.trim()) {
+        await saveReviewerNote();
+      }
+      const approvedDraft = { id: draft.id, title: draft.title, version: draft.version };
       await reviewDecision.approve.mutateAsync();
+      setJustApproved(approvedDraft);
+      await client.invalidateQueries({ queryKey: keys.drafts });
+      await client.invalidateQueries({ queryKey: keys.audit });
       await client.invalidateQueries({ queryKey: keys.comments(draft.id) });
-      toast.success('Approved version locked and logged to audit trail');
-    } catch (e) {
+      toast.success(`Draft "${approvedDraft.title}" approved and locked (v${approvedDraft.version})`);
+      setNote('');
+    } catch (e: any) {
       toast.error(e instanceof Error ? e.message : 'Approval failed');
     }
   };
@@ -1379,10 +1429,25 @@ function LoginPage() {
               </Glass>
             </div>
           ) : (
-            <Glass className="p-9 text-center">
-              <BadgeCheck className="mx-auto text-teal-500" />
-              <h2 className="display mt-3 text-xl font-bold">Queue is clear.</h2>
-              <p className="mt-2 text-sm text-muted-foreground">Submitted drafts will appear here for reviewer sign-off.</p>
+            <Glass className="p-9 text-center border-teal-300/30 bg-teal-300/[.05]">
+              <BadgeCheck className="mx-auto h-12 w-12 text-teal-500" />
+              <h2 className="display mt-3 text-xl font-bold">Release locked and approved!</h2>
+              {justApproved ? (
+                <p className="mt-1 text-sm text-foreground">
+                  <b>{justApproved.title} (v{justApproved.version})</b> has been signed off and recorded in the permanent audit trail.
+                </p>
+              ) : (
+                <p className="mt-1 text-sm text-foreground">All submitted drafts have been verified and locked.</p>
+              )}
+              <p className="mt-2 text-xs text-muted-foreground">Reviewer sign-off complete. All open findings verified against approved Brand Kit facts.</p>
+              <div className="mt-5 flex justify-center gap-3">
+                <Link href="/audit" className="inline-flex items-center gap-2 rounded-xl bg-teal-300 px-4 py-2.5 text-xs font-bold text-slate-950 hover:bg-teal-200">
+                  <History size={14} /> View in Audit log
+                </Link>
+                <Link href="/drafts" className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-xs font-bold hover:bg-white/5">
+                  <FileText size={14} /> View all drafts
+                </Link>
+              </div>
             </Glass>
           )}
         </div>

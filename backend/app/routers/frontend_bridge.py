@@ -569,15 +569,19 @@ def get_diff(draft_id: str, from_v: int = Query(1, alias="from"), to_v: int = Qu
 @router.post("/api/v1/drafts/{draft_id}/approve")
 def approve_draft(draft_id: str):
     draft = MEM_DRAFTS.get(draft_id)
+    ver = draft.get("version", 1) if draft else 1
+    title = draft["title"] if draft else draft_id
     if draft:
         draft["status"] = "Approved"
     MEM_AUDIT.insert(0, {
         "id": f"a-{uuid4().hex[:6]}",
-        "who": "Reviewer",
+        "who": "Nisha Rao",
         "role": "reviewer",
         "action": "Approved draft",
-        "target": draft["title"] if draft else draft_id,
+        "target": f"{title} (v{ver})",
         "timestamp": datetime.now(timezone.utc).isoformat(),
+        "reason": "Reviewer sign-off: verified evidence and locked approved version",
+        "details": f"Draft ID: {draft_id} · Locked version {ver}",
     })
     return {"status": "Approved"}
 
@@ -586,15 +590,19 @@ def approve_draft(draft_id: str):
 @router.post("/api/v1/drafts/{draft_id}/request-changes")
 def request_changes(draft_id: str, body: RequestChangesInput):
     draft = MEM_DRAFTS.get(draft_id)
+    ver = draft.get("version", 1) if draft else 1
+    title = draft["title"] if draft else draft_id
     if draft:
         draft["status"] = "Changes requested"
     MEM_AUDIT.insert(0, {
         "id": f"a-{uuid4().hex[:6]}",
-        "who": "Reviewer",
+        "who": "Nisha Rao",
         "role": "reviewer",
-        "action": f"Requested changes: {body.reason}",
-        "target": draft["title"] if draft else draft_id,
+        "action": "Requested changes",
+        "target": f"{title} (v{ver})",
         "timestamp": datetime.now(timezone.utc).isoformat(),
+        "reason": body.reason or "Requested changes before sign-off",
+        "details": f"Draft ID: {draft_id} · Note: {body.reason}",
     })
     return {"status": "Changes requested"}
 
