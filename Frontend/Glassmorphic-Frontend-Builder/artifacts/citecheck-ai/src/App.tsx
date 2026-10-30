@@ -10,7 +10,7 @@ import {
   CheckCheck, ChevronDown, CircleHelp, Download, FilePlus2, FileText, Flag, Gauge,
   GitCompareArrows, History, Home, Layers3, LockKeyhole, LogIn, MoreHorizontal, PanelRight,
   Plus, Radar, RefreshCw, Search, Send, Settings2, ShieldAlert, ShieldCheck, Sparkles,
-  Sun, Moon, Upload, X, LogOut,
+  Sun, Moon, Upload, UserCheck, X, LogOut,
 } from 'lucide-react';
 import { api, API_BASE_URL } from '@/lib/api/endpoints';
 import { sampleText } from '@/lib/api/fixtures';
