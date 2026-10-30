@@ -13,6 +13,7 @@ Directly tests the bridge endpoints matching the Glassmorphic Frontend Builder:
 import pytest
 
 from app.routers.frontend_bridge import (
+    get_auth_config,
     LoginRequest,
     DraftInput,
     DecisionInput,
@@ -30,6 +31,13 @@ from app.routers.frontend_bridge import (
 
 
 class TestAuthBridge:
+    def test_get_auth_config(self):
+        cfg = get_auth_config()
+        assert "supabase_url" in cfg
+        assert "supabase_anon_key" in cfg
+        assert cfg["supabase_url"].startswith("https://")
+        assert len(cfg["supabase_anon_key"]) > 20
+
     def test_login_creator(self):
         req = LoginRequest(email="creator@acme.com", password="pass", role="creator")
         data = login(req)

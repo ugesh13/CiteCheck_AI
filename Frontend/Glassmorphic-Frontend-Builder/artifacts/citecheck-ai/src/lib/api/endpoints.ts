@@ -141,4 +141,5 @@ export const api = {
     const res = await request<AuditItem[]>('/audit-log');
     return Array.isArray(res) ? res : [];
   },
+  authConfig: () => request<{ supabase_url: string; supabase_anon_key: string }>('/auth/config'),
 };

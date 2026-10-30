@@ -135,6 +135,18 @@ class RequestChangesInput(BaseModel):
 
 
 # ─── 1. Authentication ───────────────────────────────────────────────────────
+@router.get("/api/auth/config")
+@router.get("/api/v1/auth/config")
+def get_auth_config():
+    """Expose public Supabase URL and anon key safely to frontend for OAuth."""
+    from app.core.config import get_settings
+    settings = get_settings()
+    return {
+        "supabase_url": settings.supabase_url,
+        "supabase_anon_key": settings.supabase_anon_key or getattr(settings, "anon_key", ""),
+    }
+
+
 @router.post("/api/auth/login")
 @router.post("/api/v1/auth/login")
 def login(body: LoginRequest):
