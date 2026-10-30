@@ -10,7 +10,7 @@ import {
   CheckCheck, ChevronDown, CircleHelp, Download, FilePlus2, FileText, Flag, Gauge,
   GitCompareArrows, History, Home, Layers3, LockKeyhole, LogIn, MoreHorizontal, PanelRight,
   Plus, Radar, RefreshCw, Search, Send, Settings2, ShieldAlert, ShieldCheck, Sparkles,
-  Sun, Moon, Upload, X,
+  Sun, Moon, Upload, X, LogOut,
 } from 'lucide-react';
 import { api, API_BASE_URL } from '@/lib/api/endpoints';
 import { sampleText } from '@/lib/api/fixtures';
@@ -70,6 +70,7 @@ function AppShell({ children }: { children: ReactNode }) {
   const commandDrafts = Array.isArray(commandDraftsRaw) ? commandDraftsRaw : [];
   const [palette, setPalette] = useState(false);
   const [more, setMore] = useState(false);
+  const [userMenu, setUserMenu] = useState(false);
   const [search, setSearch] = useState('');
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
@@ -77,7 +78,7 @@ function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); setPalette((v) => !v); }
-      if (event.key === 'Escape') { setPalette(false); setMore(false); }
+      if (event.key === 'Escape') { setPalette(false); setMore(false); setUserMenu(false); }
     };
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
   }, []);
@@ -94,9 +95,80 @@ function AppShell({ children }: { children: ReactNode }) {
         <div className="hidden items-center gap-2 md:flex"><span className="mono rounded-full border border-border bg-card/50 px-3 py-1.5 text-[9px] uppercase tracking-widest text-muted-foreground">Lumen Pay · synthetic demo</span>
           <button onClick={() => setPalette(true)} className="flex items-center gap-2 rounded-xl border border-border bg-card/50 px-3 py-2 text-xs text-muted-foreground hover:bg-card" aria-label="Open command palette"><Search size={14} /> Jump to <kbd className="rounded border px-1.5 py-0.5 font-mono text-[9px]">⌘ K</kbd></button>
           <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="rounded-xl border border-border bg-card/50 p-2.5 text-muted-foreground hover:text-foreground" aria-label="Toggle theme" data-testid="button-theme-toggle">{theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}</button>
-          {user ? <button onClick={() => { logout(); toast.success('Signed out'); go('/login'); }} className="flex items-center gap-2 rounded-xl border border-border bg-card/50 px-3 py-2 text-left text-xs hover:bg-card" data-testid="button-logout"><span className="grid h-7 w-7 place-items-center rounded-lg bg-violet-300/15 font-bold text-violet-600 dark:text-violet-200">{user.name.split(' ').map((v) => v[0]).join('')}</span><span><b className="block text-foreground">{user.name}</b><span className="text-muted-foreground">{roleName(user.role)}</span></span></button> : <Link href="/login" className="rounded-xl bg-teal-300 px-4 py-2 text-xs font-bold text-slate-950">Sign in</Link>}
+          {user ? (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setUserMenu(!userMenu)}
+                className="flex items-center gap-2 rounded-xl border border-border bg-card/60 px-3 py-2 text-left text-xs hover:bg-card transition shadow-sm cursor-pointer"
+                data-testid="button-user-menu"
+                aria-label="User account menu"
+              >
+                <span className="grid h-7 w-7 place-items-center rounded-lg bg-violet-400/20 font-bold text-violet-600 dark:text-violet-200">
+                  {user.name ? user.name.split(' ').map((v) => v[0]).slice(0, 2).join('').toUpperCase() : 'U'}
+                </span>
+                <span className="hidden sm:block">
+                  <b className="block text-foreground leading-tight">{user.name || 'User'}</b>
+                  <span className="text-[10px] text-muted-foreground">{roleName(user.role)}</span>
+                </span>
+                <ChevronDown size={14} className={`text-muted-foreground transition-transform duration-200 ${userMenu ? 'rotate-180' : ''}`} />
+              </button>
+
+              {userMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setUserMenu(false)} />
+                  <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-2xl border border-border/80 bg-background/95 p-2 shadow-2xl backdrop-blur-2xl animate-in fade-in zoom-in-95">
+                    <div className="border-b border-border/60 px-3 py-2.5">
+                      <p className="text-xs font-bold text-foreground">{user.name || 'User'}</p>
+                      <p className="text-[10px] text-muted-foreground">{roleName(user.role)}</p>
+                    </div>
+                    <div className="p-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserMenu(false);
+                          setPath('/settings');
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-card hover:text-foreground transition cursor-pointer"
+                      >
+                        <Settings2 size={15} /> Settings
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserMenu(false);
+                          logout();
+                          toast.success('Signed out successfully');
+                          setPath('/');
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                        data-testid="button-logout"
+                      >
+                        <LogOut size={15} /> Log out
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <Link href="/" className="rounded-xl bg-teal-300 px-4 py-2 text-xs font-bold text-slate-950 shadow-sm hover:bg-teal-200">Sign in</Link>
+          )}
         </div>
-        <div className="flex items-center gap-2 md:hidden"><button onClick={() => setPalette(true)} aria-label="Search" className="rounded-xl border border-border p-2"><Search size={16} /></button><button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Toggle theme" className="rounded-xl border border-border p-2">{theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}</button></div>
+        <div className="flex items-center gap-2 md:hidden">
+          <button onClick={() => setPalette(true)} aria-label="Search" className="rounded-xl border border-border p-2"><Search size={16} /></button>
+          <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Toggle theme" className="rounded-xl border border-border p-2">{theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}</button>
+          {user && (
+            <button
+              onClick={() => { logout(); toast.success('Signed out successfully'); setPath('/'); }}
+              aria-label="Log out"
+              title="Log out"
+              className="rounded-xl border border-rose-300/30 bg-rose-500/10 p-2 text-rose-500"
+            >
+              <LogOut size={16} />
+            </button>
+          )}
+        </div>
       </div>
     </header>
     <div className="mx-auto flex max-w-[1440px]">
@@ -112,7 +184,7 @@ function AppShell({ children }: { children: ReactNode }) {
     </div>
     {user && <nav aria-label="Quick navigation" className="dock-shell fixed bottom-5 left-1/2 z-40 hidden -translate-x-1/2 items-center gap-1 rounded-[1.35rem] border border-white/15 bg-slate-950/80 p-2 text-white backdrop-blur-2xl lg:flex">{visibleNav.slice(0, 5).map(({ href, label, icon: Icon }) => <Link key={href} href={href} title={label} aria-label={label} className={`group grid h-12 w-12 place-items-center rounded-2xl transition duration-200 hover:-translate-y-2 hover:scale-[1.18] hover:bg-white/10 ${path === href ? 'bg-teal-300 text-slate-950 shadow-lg shadow-teal-300/15' : 'text-white/70'}`}><Icon size={19} /></Link>)}<Link href="/settings" title="Settings" aria-label="Settings" className="grid h-12 w-12 place-items-center rounded-2xl text-white/70 transition hover:-translate-y-2 hover:scale-[1.18] hover:bg-white/10"><Settings2 size={19} /></Link></nav>}
     {user && <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border/70 bg-background/85 px-2 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur-2xl lg:hidden">{visibleNav.slice(0, 4).map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={`grid justify-items-center gap-1 py-1 text-[9px] font-bold ${path === href ? 'text-teal-600 dark:text-teal-200' : 'text-muted-foreground'}`}><Icon size={19} /><span>{label.split(' ')[0]}</span></Link>)}<button onClick={() => setMore(true)} className="grid justify-items-center gap-1 py-1 text-[9px] font-bold text-muted-foreground"><MoreHorizontal size={19} />More</button></nav>}
-  { more && <div className="fixed inset-0 z-50 flex items-end bg-slate-950/55 p-3 backdrop-blur-sm lg:hidden" onClick={() => setMore(false)}><div className="glass w-full rounded-[1.7rem] p-5" onClick={(e) => e.stopPropagation()}><div className="mb-4 flex items-center justify-between"><h3 className="display text-lg font-bold">More in workspace</h3><button onClick={() => setMore(false)} aria-label="Close menu"><X /></button></div><div className="grid grid-cols-2 gap-2">{[...visibleNav.slice(4), { href: '/how-it-works', label: 'How it works', icon: BookOpen }, { href: '/settings', label: 'Settings', icon: Settings2 }, { href: '/login', label: 'Switch role', icon: LogIn }].map(({ href, label, icon: Icon }) => <button key={href} onClick={() => go(href)} className="flex items-center gap-3 rounded-xl border border-border bg-card/60 p-3 text-left text-sm"><Icon size={16} />{label}</button>)}</div></div></div> }
+  { more && <div className="fixed inset-0 z-50 flex items-end bg-slate-950/55 p-3 backdrop-blur-sm lg:hidden" onClick={() => setMore(false)}><div className="glass w-full rounded-[1.7rem] p-5" onClick={(e) => e.stopPropagation()}><div className="mb-4 flex items-center justify-between"><h3 className="display text-lg font-bold">More in workspace</h3><button onClick={() => setMore(false)} aria-label="Close menu"><X /></button></div><div className="grid grid-cols-2 gap-2">{[...visibleNav.slice(4), { href: '/how-it-works', label: 'How it works', icon: BookOpen }, { href: '/settings', label: 'Settings', icon: Settings2 }, { href: '#logout', label: 'Log out', icon: LogOut, isLogout: true }].map((item: any) => <button key={item.href} onClick={() => { if (item.isLogout) { logout(); toast.success("Signed out successfully"); setPath("/"); } else { go(item.href); } }} className="flex items-center gap-3 rounded-xl border border-border bg-card/60 p-3 text-left text-sm"><item.icon size={16} />{item.label}</button>)}</div></div></div> }
   { palette && <div className="fixed inset-0 z-[60] flex items-start justify-center bg-slate-950/60 px-4 pt-[12vh] backdrop-blur-sm" onClick={() => setPalette(false)}><div className="glass w-full max-w-xl rounded-3xl p-3 shadow-2xl" onClick={(e) => e.stopPropagation()}><div className="flex items-center gap-3 border-b border-border px-3 pb-3"><Search size={18} className="text-muted-foreground" /><input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Jump to a page or draft…" className="h-10 flex-1 bg-transparent text-sm outline-none" data-testid="input-command-search" /><kbd className="rounded border px-2 py-1 font-mono text-[10px]">ESC</kbd></div><div className="p-2">{[...visibleNav, { href: '/how-it-works', label: 'How it works', icon: BookOpen }, { href: '/settings', label: 'Settings', icon: Settings2 }, ...(commandDrafts || []).map((draft) => ({ href: `/drafts/${draft.id}`, label: draft.title, icon: FileText }))].filter((n) => n.label.toLowerCase().includes(search.toLowerCase())).map(({ href, label, icon: Icon }) => <button key={href} onClick={() => go(href)} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm hover:bg-white/10"><Icon size={16} />{label}<ArrowRight size={14} className="ml-auto text-muted-foreground" /></button>)}</div><div className="px-3 pb-2 text-[10px] text-muted-foreground">CiteCheck command menu <span className="float-right">↑↓ to navigate · Esc to close</span></div></div></div> }
   </div >;
 }
@@ -570,7 +642,7 @@ function LoginPage() {
   });
           const findingsQuery = useFindings(draft?.id || '');
           return <div className="page-enter"><PageHead eyebrow="Reviewer desk" title="Review with the full context." sub="See the change, inspect the evidence, leave a note, and make the call." />
-            {user?.role !== 'reviewer' && <Glass className="mb-4 border-amber-300/20 bg-amber-300/[.06] p-4"><div className="flex items-center gap-2 text-sm font-bold"><LockKeyhole size={16} />Reviewer actions are locked</div><p className="mt-1 text-xs text-muted-foreground">You are signed in as {roleName(user?.role)}. Switch to a reviewer account to approve or request changes.</p><Link href="/login" className="mt-2 inline-block text-xs font-bold text-teal-600">Switch role →</Link></Glass>}
+            {user?.role !== 'reviewer' && <Glass className="mb-4 border-amber-300/20 bg-amber-300/[.06] p-4"><div className="flex items-center gap-2 text-sm font-bold"><LockKeyhole size={16} />Reviewer actions are locked</div><p className="mt-1 text-xs text-muted-foreground">You are signed in as {roleName(user?.role)}. Switch to a reviewer account to approve or request changes.</p><button onClick={() => { logout(); toast.success("Signed out to switch account"); setPath("/"); }} className="mt-2 inline-block text-xs font-bold text-teal-600 dark:text-teal-300 hover:underline cursor-pointer">Switch account →</button></Glass>}
             {isLoading ? <LoadingCards /> : isError ? <ApiFailure error={error} retry={() => refetch()} /> : pending.length ? <div className="grid gap-4 lg:grid-cols-[280px_1fr]"><Glass className="p-4"><Eyebrow>Queue · {pending.length}</Eyebrow><div className="mt-3 grid gap-2">{pending.map((item) => <button key={item.id} onClick={() => setSelected(item.id)} className={`rounded-xl border p-3 text-left ${selected === item.id ? 'border-teal-300/35 bg-teal-300/[.08]' : 'border-border hover:bg-white/5'}`}><b className="block truncate text-xs">{item.title}</b><span className="mt-1 block text-[10px] text-muted-foreground">v{item.version} · {item.findings_count ?? 0} findings</span></button>)}</div></Glass>
               {draft ? <div className="grid content-start gap-4"><Glass className="p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><Eyebrow>Submitted version · v{draft.version}</Eyebrow><h2 className="display mt-2 text-xl font-bold">{draft.title}</h2></div><Tag tone="violet">In review</Tag></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><div className="rounded-xl border border-border bg-background/35 p-4"><Eyebrow>Previous snapshot</Eyebrow><p className="mt-3 whitespace-pre-wrap text-xs leading-6 text-muted-foreground">{(draft.text || '').slice(0, 180)}</p></div><div className="rounded-xl border border-teal-300/15 bg-teal-300/[.04] p-4"><Eyebrow>Submitted draft</Eyebrow><p className="mt-3 whitespace-pre-wrap text-xs leading-6">{draft.text}</p></div></div><div className="mt-4 flex items-center gap-2 text-[10px] text-muted-foreground"><GitCompareArrows size={14} />Version diff shown from the submitted API version. Confirm changes before deciding.</div></Glass>
                 <Glass className="p-5"><div className="flex items-center justify-between"><div><Eyebrow>Finding context</Eyebrow><h3 className="display mt-1 font-bold">{findingsQuery.data?.length || 0} reported findings</h3></div><Link href={`/drafts/${draft.id}`} className="text-xs font-bold text-teal-600 dark:text-teal-200">Open full review <ArrowUpRight size={13} className="inline" /></Link></div><div className="mt-3 grid gap-2">{(findingsQuery.data || []).map((item) => <div key={item.id} className="rounded-xl border border-border bg-background/35 p-3"><div className="flex flex-wrap justify-between gap-2"><Tag tone={item.severity === 'high' ? 'rose' : 'amber'}>{item.severity}</Tag><span className="mono text-[10px] text-violet-600 dark:text-violet-200">{item.source_ref_id}</span></div><p className="mt-2 font-mono text-xs">“{item.excerpt}”</p><p className="mt-1 text-[10px] leading-5 text-muted-foreground">{item.reason}</p></div>)}{!findingsQuery.data?.length && <p className="text-xs text-muted-foreground">No findings returned for this submission.</p>}</div></Glass>
@@ -585,7 +657,7 @@ function LoginPage() {
           const {data, isLoading, isError, error, refetch} = useGapRadar();
           const [tableView, setTableView] = useState(false);
           const radarItems = Array.isArray(data) ? data : [];
-          if (user?.role !== 'brand_manager') return <Glass className="mx-auto max-w-2xl p-8 text-center"><LockKeyhole className="mx-auto text-amber-500" /><h1 className="display mt-3 text-2xl font-bold">Gap Radar is manager-only.</h1><p className="mt-2 text-sm text-muted-foreground">Repeated dismissals help a Brand Manager find rules that may need clearer wording.</p><Link href="/login" className="mt-5 inline-flex rounded-xl bg-teal-300 px-4 py-2.5 text-sm font-bold text-slate-950">Switch role</Link></Glass>;
+          if (user?.role !== 'brand_manager') return <Glass className="mx-auto max-w-2xl p-8 text-center"><LockKeyhole className="mx-auto text-amber-500" /><h1 className="display mt-3 text-2xl font-bold">Gap Radar is manager-only.</h1><p className="mt-2 text-sm text-muted-foreground">Repeated dismissals help a Brand Manager find rules that may need clearer wording.</p><button onClick={() => { logout(); toast.success("Signed out to switch account"); setPath("/"); }} className="mt-5 inline-flex rounded-xl bg-teal-300 px-4 py-2.5 text-sm font-bold text-slate-950 hover:bg-teal-200 cursor-pointer">Switch account</button></Glass>;
           return <div className="page-enter"><PageHead eyebrow="Brand governance · pattern review" title="Guideline Gap Radar" sub="Repeated dismissals can be a signal that a rule needs better examples. Fix the rule, not the person." action={<button onClick={() => setTableView(!tableView)} className="rounded-xl border border-border bg-card/50 px-4 py-2.5 text-xs font-bold hover:bg-card">{tableView ? 'Chart view' : 'Table view'}</button>} />
             {isLoading ? <LoadingCards /> : isError ? <ApiFailure error={error} retry={() => refetch()} /> : <div className="grid gap-4 lg:grid-cols-[.9fr_1.1fr]"><Glass className="p-5 sm:p-7"><div className="flex items-center justify-between"><div><Eyebrow>Dismissal patterns</Eyebrow><h2 className="display mt-2 text-xl font-bold">{tableView ? 'Rule comparison' : 'Signals from real decisions'}</h2></div><Radar size={19} className="text-violet-500" /></div>{tableView ? <div className="mt-5 overflow-x-auto"><table className="w-full text-left text-xs"><thead className="mono text-[9px] uppercase text-muted-foreground"><tr><th className="pb-3">Rule</th><th className="pb-3">Flagged</th><th className="pb-3">Dismissed</th></tr></thead><tbody>{radarItems.map((r: any) => <tr key={r.rule} className="border-t border-border"><td className="py-3 pr-2">{r.rule}</td><td>{r.flagged}</td><td>{r.dismissed}</td></tr>)}</tbody></table></div> : <div className="mt-6 grid gap-4">{radarItems.map((r: any) => <div key={r.rule}><div className="flex justify-between text-[10px]"><span className="font-bold">{r.rule}</span><span className="text-muted-foreground">{r.dismissed} / {r.flagged} dismissals</span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-background/60"><div className="h-full rounded-full bg-gradient-to-r from-teal-300 via-violet-400 to-amber-300" style={{ width: `${Math.min(100, r.flagged ? r.dismissed / r.flagged * 100 : 0)}%` }} /></div></div>)}</div>}<div className="mt-7 flex gap-4 text-[9px] text-muted-foreground"><span className="flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-violet-400" />Flagged</span><span className="flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-amber-300" />Dismissal ratio</span></div></Glass>
               <Glass className="p-5 sm:p-7"><Eyebrow>Ranked rules</Eyebrow><div className="mt-4 grid gap-3">{radarItems.map((item: any) => <div key={item.rule} className="rounded-2xl border border-border bg-background/35 p-4"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-bold">{item.rule}</h3><Tag tone={item.status === 'Possibly unclear' ? 'amber' : 'teal'}>{item.status}</Tag></div><div className="mt-3 flex flex-wrap gap-4 text-[10px] text-muted-foreground"><span>Flagged <b className="text-foreground">{item.flagged}</b></span><span>Dismissed <b className="text-foreground">{item.dismissed}</b></span></div>{item.reasons?.length > 0 && <p className="mt-3 text-[10px] leading-5 text-muted-foreground">Dismissal reasons: {item.reasons.join(' · ')}</p>}<Link href="/brand-kit" className="mt-3 inline-flex items-center gap-1 text-[10px] font-bold text-teal-600 dark:text-teal-200">Edit guideline <ArrowUpRight size={12} /></Link></div>)}</div></Glass></div>}
@@ -658,29 +730,36 @@ function RoutedPages() {
   // Handle Supabase OAuth return (hash fragments like #access_token=... or code=...)
   useEffect(() => {
     let mounted = true;
+    let authSubscription: { unsubscribe: () => void } | null = null;
+
     (async () => {
       const sb = await initSupabase();
       if (!sb || !mounted) return;
 
-      // 1. Check existing Supabase session (e.g. from OAuth redirect or stored session)
-      const { data: { session } } = await sb.auth.getSession();
-      if (session && session.user && !useSession.getState().user) {
-        const email = session.user.email || '';
-        const rawRole = (session.user.user_metadata?.role as Role) || (localStorage.getItem('citecheck_oauth_role') as Role) || 'creator';
-        const role: Role = ['creator', 'brand_manager', 'reviewer'].includes(rawRole) ? rawRole : 'creator';
-        const name = session.user.user_metadata?.full_name || session.user.user_metadata?.name || email.split('@')[0] || 'Google User';
+      // 1. Check existing Supabase session (from OAuth redirect or stored session)
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        if (session && session.user && !useSession.getState().user) {
+          const email = session.user.email || '';
+          const rawRole = (session.user.user_metadata?.role as Role) || (localStorage.getItem('citecheck_oauth_role') as Role) || 'creator';
+          const role: Role = ['creator', 'brand_manager', 'reviewer'].includes(rawRole) ? rawRole : 'creator';
+          const name = session.user.user_metadata?.full_name || session.user.user_metadata?.name || email.split('@')[0] || 'Google User';
 
-        setSession(session.access_token, {
-          id: session.user.id,
-          name,
-          role,
-        });
-        toast.success(`Welcome, ${name}`);
-        setPath('/dashboard');
-        // Clean up URL hash if present
-        if (window.location.hash) {
-          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+          setSession(session.access_token, {
+            id: session.user.id,
+            name,
+            role,
+          });
+          toast.success(`Welcome, ${name}`);
+          if (location === '/' || location === '/login') {
+            setPath('/dashboard');
+          }
+          if (window.location.hash) {
+            window.history.replaceState(null, '', window.location.pathname + window.location.search);
+          }
         }
+      } catch (err) {
+        console.warn('Error reading initial session:', err);
       }
 
       // 2. Listen for auth state changes (OAuth callbacks, token refreshes, signouts)
@@ -692,30 +771,35 @@ function RoutedPages() {
           const role: Role = ['creator', 'brand_manager', 'reviewer'].includes(rawRole) ? rawRole : 'creator';
           const name = newSession.user.user_metadata?.full_name || newSession.user.user_metadata?.name || email.split('@')[0] || 'Google User';
 
-          setSession(newSession.access_token, {
-            id: newSession.user.id,
-            name,
-            role,
-          });
-          toast.success(`Welcome, ${name}`);
-          setPath('/dashboard');
-          if (window.location.hash) {
-            window.history.replaceState(null, '', window.location.pathname + window.location.search);
+          const currentUser = useSession.getState().user;
+          // Only re-set session and redirect if user identity changed or not yet set
+          if (!currentUser || currentUser.id !== newSession.user.id) {
+            setSession(newSession.access_token, {
+              id: newSession.user.id,
+              name,
+              role,
+            });
+            toast.success(`Welcome, ${name}`);
+            setPath('/dashboard');
+            if (window.location.hash) {
+              window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            }
           }
         } else if (event === 'SIGNED_OUT') {
           useSession.getState().logout();
         }
       });
 
-      return () => {
-        authListener?.subscription?.unsubscribe();
-      };
+      authSubscription = authListener?.subscription;
     })();
 
     return () => {
       mounted = false;
+      if (authSubscription) {
+        authSubscription.unsubscribe();
+      }
     };
-  }, [setSession, setPath]);
+  }, []);
 
   // When not logged in, keep ONLY the clean login view and hide everything else (no header, no sidebar, no dock)
   if (!user) {
@@ -740,6 +824,7 @@ function RoutedPages() {
         <Switch>
           <Route path="/" component={Dashboard} />
           <Route path="/dashboard" component={Dashboard} />
+          <Route path="/login" component={Dashboard} />
           <Route path="/brand-kit" component={BrandKitPage} />
           <Route path="/drafts" component={DraftsPage} />
           <Route path="/drafts/new" component={NewDraftPage} />

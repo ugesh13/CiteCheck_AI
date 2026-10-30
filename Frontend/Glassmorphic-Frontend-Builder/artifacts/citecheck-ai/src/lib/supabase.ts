@@ -69,3 +69,4 @@ export async function initSupabase(): Promise<SupabaseClient | null> {
 
   return initPromise;
 }
+
