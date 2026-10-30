@@ -6,6 +6,89 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 export const API_BASE_URL = API_BASE;
 const fixturesEnabled = import.meta.env.VITE_USE_FIXTURES === 'true';
 const fixtureComments: Comment[] = [];
+
+const fixtureGapRadar: any[] = [
+  {
+    rule: 'Security language',
+    guideline_id: 'GUIDE-04',
+    guideline_code: 'GUIDE-04',
+    category: 'tone',
+    flagged: 10,
+    accepted: 4,
+    dismissed: 6,
+    dismissal_rate: 60.0,
+    status: 'Unclear Policy',
+    reasons: [
+      'Technical spec required specific cipher/TLS version',
+      'Rule is too rigid for engineer-facing API docs',
+      'Context was standard security control, not marketing hype',
+    ],
+    recommendation: 'Update guideline to clarify allowed technical descriptions (TLS 1.3, AES-256) vs marketing hype.',
+  },
+  {
+    rule: 'Claims need proof',
+    guideline_id: 'GUIDE-01',
+    guideline_code: 'GUIDE-01',
+    category: 'claim',
+    flagged: 14,
+    accepted: 7,
+    dismissed: 7,
+    dismissal_rate: 50.0,
+    status: 'Unclear Policy',
+    reasons: [
+      'Pre-approved campaign exception by Legal Counsel',
+      'Customer testimonial quote, not company assertion',
+      'Descriptive benefit, not an absolute claim',
+    ],
+    recommendation: 'Add explicit guidance and exemptions for quoted customer testimonials.',
+  },
+  {
+    rule: 'No lifetime promises',
+    guideline_id: 'GUIDE-09',
+    guideline_code: 'GUIDE-09',
+    category: 'claim',
+    flagged: 6,
+    accepted: 3,
+    dismissed: 3,
+    dismissal_rate: 50.0,
+    status: 'Unclear Policy',
+    reasons: [
+      'Quarterly promotional fee lock confused with lifetime guarantee',
+      'Referencing historical launch terms',
+    ],
+    recommendation: 'Clarify boundary between temporary promotional pricing and permanent promises.',
+  },
+  {
+    rule: 'Payments terminology',
+    guideline_id: 'GUIDE-03',
+    guideline_code: 'GUIDE-03',
+    category: 'terminology',
+    flagged: 12,
+    accepted: 11,
+    dismissed: 1,
+    dismissal_rate: 8.3,
+    status: 'Healthy / Clear',
+    reasons: [
+      'Context was technical banking protocol spec',
+    ],
+    recommendation: 'High adherence (92% acceptance rate); keep as standard.',
+  },
+  {
+    rule: 'Numbers and dates',
+    guideline_id: 'GUIDE-05',
+    guideline_code: 'GUIDE-05',
+    category: 'formatting',
+    flagged: 9,
+    accepted: 7,
+    dismissed: 2,
+    dismissal_rate: 22.2,
+    status: 'Healthy / Clear',
+    reasons: [
+      'Date format specified by platform app store guideline',
+    ],
+    recommendation: 'Guideline is performing well with clear adherence (77.8%).',
+  },
+];
 const headers = () => {
   const token = useSession.getState().token;
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
@@ -57,13 +140,52 @@ async function fixtureRequest(path: string, method: string, body?: any): Promise
     const rows: any[] = (brandKit as any)[bucket] || [];
     const id = idPath?.slice(1);
     if (method === 'DELETE') { const index = rows.findIndex((item) => item.id === id); if (index >= 0) rows.splice(index, 1); return {}; }
-    if (method === 'PATCH' && id) { const index = rows.findIndex((item) => item.id === id); if (index >= 0) rows[index] = { ...rows[index], ...body }; return rows[index] || {}; }
+    if (method === 'PATCH' && id) {
+      const index = rows.findIndex((item) => item.id === id);
+      if (index >= 0) {
+        rows[index] = { ...rows[index], ...body };
+        audit.unshift({
+          id: `a-${Date.now()}`,
+          who: useSession.getState().user?.name || 'Arjun Mehta',
+          role: useSession.getState().user?.role || 'brand_manager',
+          action: 'Updated Brand Kit entry',
+          target: `Brand Kit · ${id}`,
+          timestamp: new Date().toISOString(),
+          reason: body.review_date ? `Updated review date to ${body.review_date}` : 'Updated approved brand asset',
+          details: `Content: "${body.text || body.title || ''}"`,
+        });
+      }
+      return rows[index] || {};
+    }
     if (method === 'POST') { const created = { ...body, id: `${bucket.slice(0,-1).toUpperCase()}-${Date.now()}` }; rows.unshift(created); return created; }
   }
   if (path.startsWith('/findings/') && path.endsWith('/decision')) {
     const id = path.split('/')[2];
     const entry = findings.find((item) => item.id === id);
-    if (entry) entry.status = body.action === 'dismiss' ? 'dismissed' : 'resolved';
+    if (entry) {
+      entry.status = body.action === 'dismiss' ? 'dismissed' : 'resolved';
+      if (body.action === 'dismiss') {
+        const ruleCode = entry.source_ref_id || 'GUIDE-01';
+        const matched = fixtureGapRadar.find((r: any) => r.guideline_id === ruleCode || r.guideline_code === ruleCode) || fixtureGapRadar[1];
+        matched.flagged += 1;
+        matched.dismissed += 1;
+        matched.dismissal_rate = Math.round((matched.dismissed / matched.flagged) * 1000) / 10;
+        matched.status = (matched.flagged >= 4 && matched.dismissal_rate >= 50) ? 'Unclear Policy' : 'Healthy / Clear';
+        if (body.reason && !matched.reasons.includes(body.reason)) {
+          matched.reasons.unshift(body.reason);
+        }
+      }
+      audit.unshift({
+        id: `a-${Date.now()}`,
+        who: useSession.getState().user?.name || 'Meera Nair',
+        role: useSession.getState().user?.role || 'creator',
+        action: body.action === 'dismiss' ? 'Dismissed finding with reason' : 'Accepted suggested fix',
+        target: `${entry.draft_id} · ${entry.id}`,
+        timestamp: new Date().toISOString(),
+        reason: body.reason || (body.action === 'accept' ? 'Replaced claim with approved brand kit fix' : 'Finding edited'),
+        details: `Rule ${entry.source_ref_id} · Excerpt: "${entry.excerpt}"`,
+      });
+    }
     return { ...body, status: entry?.status || 'resolved' };
   }
   if (path.startsWith('/drafts/') && path.endsWith('/comments') && method === 'POST') {
@@ -93,84 +215,7 @@ async function fixtureRequest(path: string, method: string, body?: any): Promise
     if (action === 'diff') return { from: 1, to: 2, before: versions[0].text, after: versions[1].text };
   }
   if (path === '/gap-radar') {
-    return [
-      {
-        rule: 'Security language',
-        guideline_id: 'GUIDE-04',
-        guideline_code: 'GUIDE-04',
-        category: 'tone',
-        flagged: 10,
-        accepted: 4,
-        dismissed: 6,
-        dismissal_rate: 60.0,
-        status: 'Unclear Policy',
-        reasons: [
-          'Technical spec required specific cipher/TLS version',
-          'Rule is too rigid for engineer-facing API docs',
-          'Context was standard security control, not marketing hype',
-        ],
-        recommendation: 'Update guideline to clarify allowed technical descriptions (TLS 1.3, AES-256) vs marketing hype.',
-      },
-      {
-        rule: 'Claims need proof',
-        guideline_id: 'GUIDE-01',
-        guideline_code: 'GUIDE-01',
-        category: 'claim',
-        flagged: 14,
-        accepted: 7,
-        dismissed: 7,
-        dismissal_rate: 50.0,
-        status: 'Unclear Policy',
-        reasons: [
-          'Pre-approved campaign exception by Legal Counsel',
-          'Customer testimonial quote, not company assertion',
-          'Descriptive benefit, not an absolute claim',
-        ],
-        recommendation: 'Add explicit guidance and exemptions for quoted customer testimonials.',
-      },
-      {
-        rule: 'No lifetime promises',
-        guideline_id: 'GUIDE-09',
-        guideline_code: 'GUIDE-09',
-        category: 'claim',
-        flagged: 6,
-        accepted: 3,
-        dismissed: 3,
-        dismissal_rate: 50.0,
-        status: 'Unclear Policy',
-        reasons: [
-          'Quarterly promotional fee lock confused with lifetime guarantee',
-          'Referencing historical launch terms',
-        ],
-        recommendation: 'Clarify boundary between temporary promotional pricing and permanent promises.',
-      },
-      {
-        rule: 'Plainspoken confidence',
-        guideline_id: 'GUIDE-02',
-        guideline_code: 'GUIDE-02',
-        category: 'tone',
-        flagged: 9,
-        accepted: 7,
-        dismissed: 2,
-        dismissal_rate: 22.2,
-        status: 'Healthy / Clear',
-        reasons: ['Needs clearer before/after examples'],
-        recommendation: 'Guideline is well-understood; creators consistently accept suggestions.',
-      },
-      {
-        rule: 'Payments terminology',
-        guideline_id: 'GUIDE-03',
-        guideline_code: 'GUIDE-03',
-        category: 'terminology',
-        flagged: 12,
-        accepted: 11,
-        dismissed: 1,
-        dismissal_rate: 8.3,
-        status: 'Healthy / Clear',
-        reasons: ['Third-party banking API specification'],
-        recommendation: 'High adherence (92% acceptance rate); keep as standard.',
-      },
-    ];
+    return structuredClone(fixtureGapRadar);
   }
   if (path === '/audit-log') return structuredClone(audit);
   return [];

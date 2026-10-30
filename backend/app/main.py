@@ -127,8 +127,8 @@ EMBEDDED_INDEX_HTML = """<!DOCTYPE html>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="/assets/index-BtcK54FI.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-B0Y4IQUY.css">
+    <script type="module" crossorigin src="/assets/index-BDqVLUY_.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-pTURVlnv.css">
   </head>
   <body>
     <div id="root"></div>

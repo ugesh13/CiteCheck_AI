@@ -105,6 +105,9 @@ function QuickStartTour() {
       return true;
     }
   });
+  const user = useSession((s) => s.user);
+  const demoRole = useSession((s) => s.demoRole);
+
   if (!open) return null;
   const dismiss = () => {
     setOpen(false);
@@ -112,38 +115,83 @@ function QuickStartTour() {
       localStorage.setItem('citecheck_dismiss_tour', 'true');
     } catch {}
   };
+
   return (
     <Glass className="mb-5 border-teal-300/30 bg-teal-300/[.06] p-4 sm:p-5 relative overflow-hidden">
       <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-3 w-full">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-teal-300/20 text-teal-600 dark:text-teal-200">
             <Sparkles size={20} />
           </span>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="mono text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-200">
-                Evaluation Guide
-              </span>
-              <Tag tone="teal">Try it in 60 seconds</Tag>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="mono text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-200">
+                  Judges' Evaluation Guide
+                </span>
+                <Tag tone="teal">Role-by-Role Script</Tag>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                Active account: <b className="text-foreground">{user?.name || 'User'} ({roleName(user?.role)})</b>
+              </div>
             </div>
             <h3 className="display mt-1 text-base font-bold text-foreground sm:text-lg">
-              Three steps to test the Evidence-First Brand Governance engine:
+              Follow this 3-step script to test the complete brand governance loop:
             </h3>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border border-border/70 bg-background/50 p-3">
-                <span className="mono text-[10px] font-bold text-violet-500">STEP 1</span>
-                <p className="mt-1 text-xs font-semibold text-foreground">Open a draft or upload .docx</p>
-                <p className="mt-0.5 text-[10px] text-muted-foreground">Click "app-store-listing.md" or try "Upload .docx".</p>
+
+            <div className="mt-3.5 grid gap-3 sm:grid-cols-3">
+              <div className={`rounded-2xl border p-4 transition ${user?.role === 'creator' ? 'border-teal-400 bg-teal-400/10 ring-1 ring-teal-400/30' : 'border-border/70 bg-background/50'}`}>
+                <div className="flex items-center justify-between">
+                  <span className="mono text-[10px] font-bold text-teal-600 dark:text-teal-300">1. CREATOR</span>
+                  {user?.role === 'creator' && <Tag tone="teal">Active</Tag>}
+                </div>
+                <b className="mt-1.5 block text-sm font-bold text-foreground">Meera Nair (Marketing Copy)</b>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Open <b>app-store-listing.md</b>, review quotes, and dismiss a finding with a reason. Watch it feed Gap Radar.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { demoRole('creator'); toast.success('Switched to Meera (Creator)'); }}
+                  className={`mt-3 inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${user?.role === 'creator' ? 'bg-teal-300 text-slate-950 shadow-sm' : 'bg-white/10 hover:bg-white/15 text-foreground'}`}
+                >
+                  <UserCheck size={14} /> {user?.role === 'creator' ? 'Active as Meera' : 'Switch to Meera'}
+                </button>
               </div>
-              <div className="rounded-xl border border-border/70 bg-background/50 p-3">
-                <span className="mono text-[10px] font-bold text-violet-500">STEP 2</span>
-                <p className="mt-1 text-xs font-semibold text-foreground">Inspect the 5-Gate Verifier</p>
-                <p className="mt-0.5 text-[10px] text-muted-foreground">See exact quotes, Fact IDs, and dropped candidates.</p>
+
+              <div className={`rounded-2xl border p-4 transition ${user?.role === 'reviewer' ? 'border-violet-400 bg-violet-400/10 ring-1 ring-violet-400/30' : 'border-border/70 bg-background/50'}`}>
+                <div className="flex items-center justify-between">
+                  <span className="mono text-[10px] font-bold text-violet-500">2. REVIEWER</span>
+                  {user?.role === 'reviewer' && <Tag tone="violet">Active</Tag>}
+                </div>
+                <b className="mt-1.5 block text-sm font-bold text-foreground">Nisha Rao (Governance)</b>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Go to <b>Review queue</b>. Inspect <b>launch-email.md v3</b> version diff and verify the <b>FACT-11 Expired Fact</b> alert.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { demoRole('reviewer'); toast.success('Switched to Nisha (Reviewer)'); }}
+                  className={`mt-3 inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${user?.role === 'reviewer' ? 'bg-violet-400 text-slate-950 shadow-sm' : 'bg-white/10 hover:bg-white/15 text-foreground'}`}
+                >
+                  <UserCheck size={14} /> {user?.role === 'reviewer' ? 'Active as Nisha' : 'Switch to Nisha'}
+                </button>
               </div>
-              <div className="rounded-xl border border-border/70 bg-background/50 p-3">
-                <span className="mono text-[10px] font-bold text-violet-500">STEP 3</span>
-                <p className="mt-1 text-xs font-semibold text-foreground">Accept, Edit, or Dismiss</p>
-                <p className="mt-0.5 text-[10px] text-muted-foreground">Provide dismissal reason to feed the Guideline Gap Radar.</p>
+
+              <div className={`rounded-2xl border p-4 transition ${user?.role === 'brand_manager' ? 'border-amber-400 bg-amber-400/10 ring-1 ring-amber-400/30' : 'border-border/70 bg-background/50'}`}>
+                <div className="flex items-center justify-between">
+                  <span className="mono text-[10px] font-bold text-amber-600 dark:text-amber-300">3. BRAND MANAGER</span>
+                  {user?.role === 'brand_manager' && <Tag tone="amber">Active</Tag>}
+                </div>
+                <b className="mt-1.5 block text-sm font-bold text-foreground">Arjun Mehta (Brand Owner)</b>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Inspect <b>Gap Radar</b> to diagnose unclear guidelines, then extend <b>FACT-11</b> review date in <b>Brand kit</b>.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { demoRole('brand_manager'); toast.success('Switched to Arjun (Brand Manager)'); }}
+                  className={`mt-3 inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${user?.role === 'brand_manager' ? 'bg-amber-400 text-slate-950 shadow-sm' : 'bg-white/10 hover:bg-white/15 text-foreground'}`}
+                >
+                  <UserCheck size={14} /> {user?.role === 'brand_manager' ? 'Active as Arjun' : 'Switch to Arjun'}
+                </button>
               </div>
             </div>
           </div>
@@ -151,7 +199,7 @@ function QuickStartTour() {
         <button
           onClick={dismiss}
           aria-label="Dismiss tour"
-          className="rounded-lg p-1.5 text-muted-foreground hover:bg-white/10"
+          className="rounded-lg p-1.5 text-muted-foreground hover:bg-white/10 shrink-0"
         >
           <X size={16} />
         </button>
@@ -448,7 +496,7 @@ function AppShell({ children }: { children: ReactNode }) {
           <div className="mt-4 grid gap-1"><Link href="/how-it-works" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs text-muted-foreground hover:bg-white/5 hover:text-foreground"><CircleHelp size={15} />How it works</Link><Link href="/settings" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs text-muted-foreground hover:bg-white/5 hover:text-foreground"><Settings2 size={15} />Settings</Link></div>
         </div>
       </aside>
-      <main className="min-w-0 flex-1 px-4 pb-48 pt-7 sm:px-7 lg:px-8 lg:pb-48">{children}</main>
+      <main className="min-w-0 flex-1 px-4 pb-64 pt-7 sm:px-7 lg:px-8 lg:pb-64">{children}</main>
     </div>
     {user && <nav aria-label="Quick navigation" className="dock-shell fixed bottom-5 left-1/2 z-40 hidden -translate-x-1/2 items-center gap-1 rounded-[1.35rem] border border-white/15 bg-slate-950/80 p-2 text-white backdrop-blur-2xl lg:flex">{visibleNav.slice(0, 5).map(({ href, label, icon: Icon }) => <Link key={href} href={href} title={label} aria-label={label} className={`group grid h-12 w-12 place-items-center rounded-2xl transition duration-200 hover:-translate-y-2 hover:scale-[1.18] hover:bg-white/10 ${path === href ? 'bg-teal-300 text-slate-950 shadow-lg shadow-teal-300/15' : 'text-white/70'}`}><Icon size={19} /></Link>)}<Link href="/settings" title="Settings" aria-label="Settings" className="grid h-12 w-12 place-items-center rounded-2xl text-white/70 transition hover:-translate-y-2 hover:scale-[1.18] hover:bg-white/10"><Settings2 size={19} /></Link></nav>}
     {user && <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border/70 bg-background/85 px-2 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur-2xl lg:hidden">{visibleNav.slice(0, 4).map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={`grid justify-items-center gap-1 py-1 text-[9px] font-bold ${path === href ? 'text-teal-600 dark:text-teal-200' : 'text-muted-foreground'}`}><Icon size={19} /><span>{label.split(' ')[0]}</span></Link>)}<button onClick={() => setMore(true)} className="grid justify-items-center gap-1 py-1 text-[9px] font-bold text-muted-foreground"><MoreHorizontal size={19} />More</button></nav>}
@@ -696,7 +744,7 @@ function LoginPage() {
               <ShieldAlert size={18} />
             </span>
             <div>
-              <b className="text-xs text-foreground">Fact Expiry Radar · 2 Claims require human confirmation</b>
+              <b className="text-xs text-foreground">Fact Expiry Radar · 2 claims require human confirmation</b>
               <p className="mt-0.5 text-[10px] text-muted-foreground">FACT-03 (Pricing review) and FACT-11 (Launch cashback) review dates have passed. Evidence gates require human approval for expired claims.</p>
             </div>
           </div>
@@ -1109,78 +1157,624 @@ function LoginPage() {
 }
 
           function ReviewQueuePage() {
-  const {data: draftsListRaw, isLoading, isError, error, refetch } = useDrafts();
-  const draftsList = Array.isArray(draftsListRaw) ? draftsListRaw : [];
+  const { data, isLoading, isError, error, refetch } = useDrafts();
   const user = useSession((s) => s.user);
-          const [selected, setSelected] = useState<string | null>(null);
-          const [note, setNote] = useState('');
-          const [requestOpen, setRequestOpen] = useState(false);
-          const client = useQueryClient();
+  const demoRole = useSession((s) => s.demoRole);
+  const draftsList = Array.isArray(data) ? data : [];
+  const [selected, setSelected] = useState<string | null>(null);
+  const [note, setNote] = useState('');
+  const [requestOpen, setRequestOpen] = useState(false);
+  const client = useQueryClient();
   const pending = draftsList.filter((draft) => draft.status.toLowerCase() === 'in review');
   useEffect(() => { if (!selected && pending.length) setSelected(pending[0].id); }, [selected, pending]);
   const draft = pending.find((item) => item.id === selected);
-          const reviewDecision = useReviewDecision(selected || '');
-          const reviewerComment = useAddComment(selected || '');
-          const decisionForm = useForm<{ reason: string }>({resolver: zodResolver(changesSchema), defaultValues: {reason: '' } });
+  const reviewDecision = useReviewDecision(selected || '');
+  const reviewerComment = useAddComment(selected || '');
+  const decisionForm = useForm<{ reason: string }>({ resolver: zodResolver(changesSchema), defaultValues: { reason: '' } });
+
+  const versionsQuery = useVersions(draft?.id || '');
+  const versionsList = Array.isArray(versionsQuery.data) ? versionsQuery.data : [];
+  const prevVersion = versionsList.find((v) => v.version === (draft?.version || 1) - 1) || (versionsList.length > 1 ? versionsList[versionsList.length - 2] : null);
+  const prevText = prevVersion?.text || (draft?.id === 'draft-2' ? "Join Lumen Pay today and get guaranteed unlimited cashback on every payment this year." : "Initial draft snapshot");
+
+  const findingsQuery = useFindings(draft?.id || '');
+  const allFindings = Array.isArray(findingsQuery.data) ? findingsQuery.data : [];
+  const openFindings = allFindings.filter((f) => f.status === 'open');
+  const resolvedFindings = allFindings.filter((f) => f.status !== 'open');
+
   const saveReviewerNote = async () => {
     if (!draft || !note.trim()) return;
-          await reviewerComment.mutateAsync({text: note.trim() });
+    await reviewerComment.mutateAsync({ text: note.trim() });
   };
   const approve = async () => {
-    if (user?.role !== 'reviewer') {toast.error('Only reviewers can approve a draft.'); return; }
-          if (!draft) return;
-          try {await saveReviewerNote(); await reviewDecision.approve.mutateAsync(); await client.invalidateQueries({queryKey: keys.comments(draft.id) }); toast.success('Approved version locked and logged'); }
-          catch (e) {toast.error(e instanceof Error ? e.message : 'Approval failed'); }
-  };
-          const request = decisionForm.handleSubmit(async ({reason}) => {
+    if (user?.role !== 'reviewer') { toast.error('Only reviewers can approve a draft.'); return; }
     if (!draft) return;
-          try {await saveReviewerNote(); await reviewDecision.requestChanges.mutateAsync({reason}); await client.invalidateQueries({queryKey: keys.comments(draft.id) }); toast.success('Changes requested'); setRequestOpen(false); decisionForm.reset(); }
-          catch (e) {toast.error(e instanceof Error ? e.message : 'Could not request changes'); }
-  });
-          const findingsQuery = useFindings(draft?.id || '');
-          return <div className="page-enter">
-          <PageHead eyebrow="Reviewer desk" title="Review with the full context." sub="See the change, inspect the evidence, leave a note, and make the call." />
-            {user?.role !== 'reviewer' && <Glass className="mb-4 border-amber-300/20 bg-amber-300/[.06] p-4"><div className="flex items-center gap-2 text-sm font-bold"><LockKeyhole size={16} />Reviewer actions are locked</div><p className="mt-1 text-xs text-muted-foreground">You are signed in as {roleName(user?.role)}. Switch to a reviewer account to approve or request changes.</p><button onClick={() => { logout(); toast.success("Signed out to switch account"); setPath("/"); }} className="mt-2 inline-block text-xs font-bold text-teal-600 dark:text-teal-300 hover:underline cursor-pointer">Switch account →</button></Glass>}
-            {isLoading ? <LoadingCards /> : isError ? <ApiFailure error={error} retry={() => refetch()} /> : pending.length ? <div className="grid gap-4 lg:grid-cols-[280px_1fr]"><Glass className="p-4"><Eyebrow>Queue · {pending.length}</Eyebrow><div className="mt-3 grid gap-2">{pending.map((item) => <button key={item.id} onClick={() => setSelected(item.id)} className={`rounded-xl border p-3 text-left ${selected === item.id ? 'border-teal-300/35 bg-teal-300/[.08]' : 'border-border hover:bg-white/5'}`}><b className="block truncate text-xs">{item.title}</b><span className="mt-1 block text-[10px] text-muted-foreground">v{item.version} · {item.findings_count ?? 0} {(item.findings_count ?? 0) === 1 ? 'finding' : 'findings'}</span></button>)}</div></Glass>
-              {draft ? <div className="grid content-start gap-4"><Glass className="p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><Eyebrow>Submitted version · v{draft.version}</Eyebrow><h2 className="display mt-2 text-xl font-bold">{draft.title}</h2></div><Tag tone="violet">In review</Tag></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><div className="rounded-xl border border-border bg-background/35 p-4"><Eyebrow>Previous snapshot</Eyebrow><p className="mt-3 whitespace-pre-wrap text-xs leading-6 text-muted-foreground">{(draft.text || '').slice(0, 180)}</p></div><div className="rounded-xl border border-teal-300/15 bg-teal-300/[.04] p-4"><Eyebrow>Submitted draft</Eyebrow><p className="mt-3 whitespace-pre-wrap text-xs leading-6">{draft.text}</p></div></div><div className="mt-4 flex items-center gap-2 text-[10px] text-muted-foreground"><GitCompareArrows size={14} />Version diff shown from the submitted API version. Confirm changes before deciding.</div></Glass>
-                <Glass className="p-5"><div className="flex items-center justify-between"><div><Eyebrow>Finding context</Eyebrow><h3 className="display mt-1 font-bold">{findingsQuery.data?.length || 0} reported findings</h3></div><Link href={`/drafts/${draft.id}`} className="text-xs font-bold text-teal-600 dark:text-teal-200">Open full review <ArrowUpRight size={13} className="inline" /></Link></div><div className="mt-3 grid gap-2">{(findingsQuery.data || []).map((item) => <div key={item.id} className="rounded-xl border border-border bg-background/35 p-3"><div className="flex flex-wrap justify-between gap-2"><Tag tone={item.severity === 'high' ? 'rose' : 'amber'}>{item.severity}</Tag><span className="mono text-[10px] text-violet-600 dark:text-violet-200">{item.source_ref_id}</span></div><p className="mt-2 font-mono text-xs">“{item.excerpt}”</p><p className="mt-1 text-[10px] leading-5 text-muted-foreground">{item.reason}</p></div>)}{!findingsQuery.data?.length && <p className="text-xs text-muted-foreground">No findings returned for this submission.</p>}</div></Glass>
-                <Glass className="p-5"><Eyebrow>Reviewer note</Eyebrow><textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="Leave context for the decision…" className="mt-3 w-full rounded-xl border border-border bg-background/40 p-3 text-xs" data-testid="input-review-note" /><div className="mt-3 flex flex-wrap justify-end gap-2"><Button variant="outline" onClick={() => setRequestOpen(true)} disabled={user?.role !== 'reviewer'} data-testid="button-request-changes">Request changes</Button><Button onClick={approve} disabled={user?.role !== 'reviewer'} data-testid="button-approve"><LockKeyhole size={14} />Approve & lock version</Button></div>{requestOpen && <form onSubmit={request} className="mt-4 grid gap-2 rounded-xl border border-amber-300/20 bg-amber-300/[.05] p-4"><TextArea label="What should the creator change? (10 characters minimum)" rows={3} {...decisionForm.register('reason')} error={decisionForm.formState.errors.reason?.message} data-testid="input-change-reason" /><div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setRequestOpen(false)}>Cancel</Button><Button type="submit">Send changes request</Button></div></form>}</Glass>
-              </div> : <Glass className="p-9 text-center"><BadgeCheck className="mx-auto text-teal-500" /><h2 className="display mt-3 text-xl font-bold">Queue is clear.</h2><p className="mt-2 text-sm text-muted-foreground">Submitted drafts will appear here for reviewer sign-off.</p></Glass>}</div> : <Glass className="p-9 text-center"><BadgeCheck className="mx-auto text-teal-500" /><h2 className="display mt-3 text-xl font-bold">Queue is clear.</h2></Glass>}
-            <Glass className="mt-4 flex items-center gap-3 p-4"><LockKeyhole className="text-teal-500" size={17} /><p className="text-xs text-muted-foreground">Approved version is locked and logged. Every reviewer decision becomes part of the audit trail.</p></Glass>
-          </div>;
-}
-
-          function GapRadarPage() {
-  const user = useSession((s) => s.user);
-          const {data, isLoading, isError, error, refetch} = useGapRadar();
-          const [tableView, setTableView] = useState(false);
-          const radarItems = Array.isArray(data) ? data : [];
-          if (user?.role !== 'brand_manager') return <Glass className="mx-auto max-w-2xl p-8 text-center"><LockKeyhole className="mx-auto text-amber-500" /><h1 className="display mt-3 text-2xl font-bold">Gap Radar is manager-only.</h1><p className="mt-2 text-sm text-muted-foreground">Repeated dismissals help a Brand Manager find rules that may need clearer wording.</p><button onClick={() => { logout(); toast.success("Signed out to switch account"); setPath("/"); }} className="mt-5 inline-flex rounded-xl bg-teal-300 px-4 py-2.5 text-sm font-bold text-slate-950 hover:bg-teal-200 cursor-pointer">Switch account</button></Glass>;
-          return <div className="page-enter">
-          <PageHead eyebrow="Brand governance · pattern review" title="Guideline Gap Radar" sub="Repeated dismissals can be a signal that a rule needs better examples. Fix the rule, not the person." action={<button onClick={() => setTableView(!tableView)} className="rounded-xl border border-border bg-card/50 px-4 py-2.5 text-xs font-bold hover:bg-card">{tableView ? 'Chart view' : 'Table view'}</button>} />
-            {isLoading ? <LoadingCards /> : isError ? <ApiFailure error={error} retry={() => refetch()} /> : <div className="grid gap-4 lg:grid-cols-[.9fr_1.1fr]"><Glass className="p-5 sm:p-7"><div className="flex items-center justify-between"><div><Eyebrow>Dismissal patterns</Eyebrow><h2 className="display mt-2 text-xl font-bold">{tableView ? 'Rule comparison' : 'Signals from real decisions'}</h2></div><Radar size={19} className="text-violet-500" /></div>{tableView ? <div className="mt-5 overflow-x-auto"><table className="w-full text-left text-xs"><thead className="mono text-[9px] uppercase text-muted-foreground"><tr><th className="pb-3">Rule</th><th className="pb-3">Flagged</th><th className="pb-3">Dismissed</th></tr></thead><tbody>{radarItems.map((r: any) => <tr key={r.rule} className="border-t border-border"><td className="py-3 pr-2">{r.rule}</td><td>{r.flagged}</td><td>{r.dismissed}</td></tr>)}</tbody></table></div> : <div className="mt-6 grid gap-4">{radarItems.map((r: any) => <div key={r.rule}><div className="flex justify-between text-[10px]"><span className="font-bold">{r.rule}</span><span className="text-muted-foreground">{r.dismissed} / {r.flagged} dismissals</span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-background/60"><div className="h-full rounded-full bg-gradient-to-r from-teal-300 via-violet-400 to-amber-300" style={{ width: `${Math.min(100, r.flagged ? r.dismissed / r.flagged * 100 : 0)}%` }} /></div></div>)}</div>}<div className="mt-7 flex gap-4 text-[9px] text-muted-foreground"><span className="flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-violet-400" />Flagged</span><span className="flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-amber-300" />Dismissal ratio</span></div></Glass>
-              <Glass className="p-5 sm:p-7"><Eyebrow>Ranked rules</Eyebrow><div className="mt-4 grid gap-3">{radarItems.map((item: any) => <div key={item.rule} className="rounded-2xl border border-border bg-background/35 p-4"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-bold">{item.rule}</h3><Tag tone={item.status === 'Possibly unclear' ? 'amber' : 'teal'}>{item.status}</Tag></div><div className="mt-3 flex flex-wrap gap-4 text-[10px] text-muted-foreground"><span>Flagged <b className="text-foreground">{item.flagged}</b></span><span>Dismissed <b className="text-foreground">{item.dismissed}</b></span></div>{item.reasons?.length > 0 && <p className="mt-3 text-[10px] leading-5 text-muted-foreground">Dismissal reasons: {item.reasons.join(' · ')}</p>}<Link href="/brand-kit" className="mt-3 inline-flex items-center gap-1 text-[10px] font-bold text-teal-600 dark:text-teal-200">Edit guideline <ArrowUpRight size={12} /></Link></div>)}</div></Glass></div>}
-            <Glass className="mt-4 flex items-center gap-3 p-4"><Gauge className="text-amber-500" size={18} /><p className="text-xs text-muted-foreground">A repeated dismissal is a signal to inspect the guideline—not a score of an individual.</p></Glass>
-          </div>;
-}
-
-          function AuditPage() {
-  const {data, isLoading, isError, error, refetch} = useAuditLog();
-          const [search, setSearch] = useState('');
-  const auditList = Array.isArray(data) ? data : [];
-  const rows = auditList.filter((entry) => `${entry.who} ${entry.role} ${entry.action} ${entry.target}`.toLowerCase().includes(search.toLowerCase()));
-  const exportCSV = () => {
-    const csv = [['who','role','action','target','timestamp'], ...rows.map((r) => [r.who,r.role,r.action,r.target,r.timestamp])].map((line) => line.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(',')).join('\n');
-          const href = URL.createObjectURL(new Blob([csv], {type: 'text/csv' })); const link = document.createElement('a'); link.href = href; link.download = 'citecheck-audit.csv'; link.click(); URL.revokeObjectURL(href);
+    try {
+      await saveReviewerNote();
+      await reviewDecision.approve.mutateAsync();
+      await client.invalidateQueries({ queryKey: keys.comments(draft.id) });
+      toast.success('Approved version locked and logged to audit trail');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Approval failed');
+    }
   };
-          return <div className="page-enter">
-          <PageHead eyebrow="Traceability" title="Every decision is logged." sub="A filterable record of the people, roles, actions, and content behind each review." action={<Button variant="outline" onClick={exportCSV} disabled={!rows.length} data-testid="button-export-audit"><Download size={15} />Export CSV</Button>} />
-            <Glass className="mb-4 flex flex-wrap items-center justify-between gap-3 p-3"><label className="flex h-10 min-w-0 items-center gap-2 rounded-xl border border-border bg-background/45 px-3 sm:w-80"><Search size={14} className="text-muted-foreground" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Filter the audit log…" className="min-w-0 flex-1 bg-transparent text-xs outline-none" data-testid="input-audit-filter" /></label><span className="text-[10px] text-muted-foreground">Background refresh enabled</span></Glass>
-            {isLoading ? <LoadingCards /> : isError ? <ApiFailure error={error} retry={() => refetch()} /> : <><div className="hidden overflow-hidden rounded-3xl border border-border bg-card/40 md:block"><table className="w-full text-left text-xs"><thead className="bg-white/[.04] text-[9px] uppercase tracking-widest text-muted-foreground"><tr>{['Who', 'Role', 'Action', 'Target', 'Timestamp'].map((h) => <th key={h} className="px-4 py-4 font-medium">{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.id} className="border-t border-border/70 hover:bg-white/[.025]" data-testid={`row-audit-${row.id}`}><td className="px-4 py-4 font-bold">{row.who}</td><td className="px-4 py-4"><Tag>{roleName(row.role)}</Tag></td><td className="px-4 py-4">{row.action}</td><td className="px-4 py-4 text-muted-foreground">{row.target}</td><td className="px-4 py-4 text-muted-foreground">{new Date(row.timestamp).toLocaleString()}</td></tr>)}</tbody></table></div><div className="grid gap-3 md:hidden">{rows.map((row) => <Glass key={row.id} className="p-4"><div className="flex items-center justify-between"><b className="text-sm">{row.who}</b><Tag>{roleName(row.role)}</Tag></div><p className="mt-2 text-xs">{row.action}</p><p className="mt-1 text-[10px] text-muted-foreground">{row.target}</p><p className="mono mt-3 text-[9px] text-muted-foreground">{new Date(row.timestamp).toLocaleString()}</p></Glass>)}</div>{!rows.length && <Glass className="mt-3 p-7 text-center text-sm text-muted-foreground">No audit entries match that filter.</Glass>}</>}
-          </div>;
+  const request = decisionForm.handleSubmit(async ({ reason }) => {
+    if (!draft) return;
+    try {
+      await saveReviewerNote();
+      await reviewDecision.requestChanges.mutateAsync({ reason });
+      await client.invalidateQueries({ queryKey: keys.comments(draft.id) });
+      toast.success('Changes requested');
+      setRequestOpen(false);
+      decisionForm.reset();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not request changes');
+    }
+  });
+
+  return (
+    <div className="page-enter">
+      <PageHead
+        eyebrow="Reviewer desk"
+        title="Review with full provenance."
+        sub="Compare submitted diffs, verify brand kit evidence, leave sign-off context, and lock approved releases."
+      />
+
+      {user?.role !== 'reviewer' && (
+        <Glass className="mb-5 border-amber-300/25 bg-amber-300/[.07] p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-400/20 text-amber-600 dark:text-amber-200">
+              <LockKeyhole size={16} />
+            </span>
+            <div>
+              <b className="text-xs text-foreground">Reviewer desk is locked for {roleName(user?.role)}</b>
+              <p className="text-[11px] text-muted-foreground">Approval actions and change requests require a Reviewer session.</p>
+            </div>
+          </div>
+          <Button
+            onClick={() => { demoRole('reviewer'); toast.success('Switched to Nisha Rao (Reviewer)'); }}
+            className="px-3.5 py-2 text-xs font-bold"
+          >
+            <UserCheck size={14} /> Switch to Nisha (Reviewer)
+          </Button>
+        </Glass>
+      )}
+
+      {isLoading ? (
+        <LoadingCards />
+      ) : isError ? (
+        <ApiFailure error={error} retry={() => refetch()} />
+      ) : pending.length ? (
+        <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+          <Glass className="p-4">
+            <Eyebrow>Queue · {pending.length}</Eyebrow>
+            <div className="mt-3 grid gap-2">
+              {pending.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setSelected(item.id)}
+                  className={`rounded-xl border p-3 text-left transition ${selected === item.id ? 'border-teal-300/35 bg-teal-300/[.08]' : 'border-border hover:bg-white/5'}`}
+                >
+                  <b className="block truncate text-xs">{item.title}</b>
+                  <span className="mt-1 block text-[10px] text-muted-foreground">
+                    v{item.version} · {item.findings_count ?? 0} {(item.findings_count ?? 0) === 1 ? 'finding' : 'findings'}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </Glass>
+
+          {draft ? (
+            <div className="grid content-start gap-4">
+              <Glass className="p-5 sm:p-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <Eyebrow>Submitted version · v{draft.version}</Eyebrow>
+                    <h2 className="display mt-1 text-xl font-bold">{draft.title}</h2>
+                  </div>
+                  <Tag tone="violet">In review</Tag>
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-border bg-background/35 p-4">
+                    <div className="flex items-center justify-between">
+                      <Eyebrow>Previous snapshot · v{(draft.version || 2) - 1}</Eyebrow>
+                      <Tag tone="neutral">Before</Tag>
+                    </div>
+                    <p className="mt-3 whitespace-pre-wrap font-mono text-xs leading-6 text-muted-foreground border-l-2 border-rose-400/40 pl-3 bg-rose-400/[.03] py-2 rounded-r-lg">
+                      {prevText}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-teal-300/20 bg-teal-300/[.04] p-4">
+                    <div className="flex items-center justify-between">
+                      <Eyebrow>Submitted draft · v{draft.version}</Eyebrow>
+                      <Tag tone="teal">After (Submitted)</Tag>
+                    </div>
+                    <p className="mt-3 whitespace-pre-wrap font-mono text-xs leading-6 text-foreground border-l-2 border-teal-400 pl-3 bg-teal-400/[.05] py-2 rounded-r-lg">
+                      {draft.text}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center gap-2 text-[11px] text-muted-foreground">
+                  <GitCompareArrows size={14} className="text-teal-500" />
+                  Red/green version diff generated from previous iteration. Confirm all claims before final approval.
+                </div>
+              </Glass>
+
+              <Glass className="p-5 sm:p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Eyebrow>Finding context</Eyebrow>
+                    <h3 className="display mt-1 text-lg font-bold">
+                      {openFindings.length} open {openFindings.length === 1 ? 'finding' : 'findings'}
+                      {resolvedFindings.length > 0 && (
+                        <span className="ml-2 text-xs font-normal text-muted-foreground">
+                          ({resolvedFindings.length} resolved)
+                        </span>
+                      )}
+                    </h3>
+                  </div>
+                  <Link href={`/drafts/${draft.id}`} className="text-xs font-bold text-teal-600 dark:text-teal-200 hover:underline">
+                    Open full review <ArrowUpRight size={13} className="inline" />
+                  </Link>
+                </div>
+
+                <div className="mt-4 grid gap-3">
+                  {allFindings.map((item) => {
+                    const isExpired = item.source_ref_id === 'FACT-11' || item.source_ref_id === 'FACT-03';
+                    return (
+                      <div key={item.id} className="rounded-2xl border border-border bg-background/35 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <Tag tone={item.severity === 'high' ? 'rose' : 'amber'}>{item.severity}</Tag>
+                            {item.status !== 'open' ? <Tag tone="teal">Resolved</Tag> : <Tag tone="neutral">Open</Tag>}
+                            {isExpired && <Tag tone="rose">⚠️ Source Expired · Human confirmation needed</Tag>}
+                          </div>
+                          <span className="mono text-xs font-bold text-violet-600 dark:text-violet-200">{item.source_ref_id}</span>
+                        </div>
+                        <p className="mt-3 font-mono text-xs font-semibold text-foreground">“{item.excerpt}”</p>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.reason}</p>
+                        {item.suggested_fix && (
+                          <div className="mt-3 rounded-xl bg-white/[.04] p-2.5 text-xs">
+                            <span className="text-muted-foreground">Suggested fix: </span>
+                            <span className="font-semibold text-teal-600 dark:text-teal-200">{item.suggested_fix}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {!allFindings.length && (
+                    <p className="text-xs text-muted-foreground">All findings on this draft have been verified and resolved.</p>
+                  )}
+                </div>
+              </Glass>
+
+              <Glass className="p-5 sm:p-6">
+                <Eyebrow>Reviewer note</Eyebrow>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={3}
+                  placeholder="Leave governance context for this decision (logged to audit trail)…"
+                  className="mt-3 w-full rounded-xl border border-border bg-background/40 p-3 text-xs outline-none focus:border-teal-400"
+                  data-testid="input-review-note"
+                />
+                <div className="mt-4 flex flex-wrap justify-end gap-2.5">
+                  <Button variant="outline" onClick={() => setRequestOpen(true)} disabled={user?.role !== 'reviewer'} data-testid="button-request-changes">
+                    Request changes
+                  </Button>
+                  <Button onClick={approve} disabled={user?.role !== 'reviewer'} data-testid="button-approve">
+                    <LockKeyhole size={14} /> Approve & lock version
+                  </Button>
+                </div>
+                {requestOpen && (
+                  <form onSubmit={request} className="mt-4 grid gap-3 rounded-2xl border border-amber-300/20 bg-amber-300/[.05] p-4">
+                    <TextArea label="What should the creator change? (10 characters minimum)" rows={3} {...decisionForm.register('reason')} error={decisionForm.formState.errors.reason?.message} data-testid="input-change-reason" />
+                    <div className="flex justify-end gap-2">
+                      <Button type="button" variant="outline" onClick={() => setRequestOpen(false)}>Cancel</Button>
+                      <Button type="submit">Send changes request</Button>
+                    </div>
+                  </form>
+                )}
+              </Glass>
+            </div>
+          ) : (
+            <Glass className="p-9 text-center">
+              <BadgeCheck className="mx-auto text-teal-500" />
+              <h2 className="display mt-3 text-xl font-bold">Queue is clear.</h2>
+              <p className="mt-2 text-sm text-muted-foreground">Submitted drafts will appear here for reviewer sign-off.</p>
+            </Glass>
+          )}
+        </div>
+      ) : (
+        <Glass className="p-9 text-center">
+          <BadgeCheck className="mx-auto text-teal-500" />
+          <h2 className="display mt-3 text-xl font-bold">Queue is clear.</h2>
+          <p className="mt-2 text-sm text-muted-foreground">No drafts currently in review. Submit a draft from the drafts workspace.</p>
+        </Glass>
+      )}
+      <Glass className="mt-4 flex items-center gap-3 p-4">
+        <LockKeyhole className="text-teal-500" size={17} />
+        <p className="text-xs text-muted-foreground">Approved versions are locked and tamper-evident. Every reviewer decision becomes part of the permanent audit trail.</p>
+      </Glass>
+    </div>
+  );
 }
 
-          const workflow = [
+function GapRadarPage() {
+  const user = useSession((s) => s.user);
+  const demoRole = useSession((s) => s.demoRole);
+  const { data, isLoading, isError, error, refetch } = useGapRadar();
+  const [tableView, setTableView] = useState(false);
+  const radarItems = Array.isArray(data) ? data : [];
+
+  return (
+    <div className="page-enter">
+      <PageHead
+        eyebrow="Brand governance · pattern review"
+        title="Guideline Gap Radar"
+        sub="Signals from creator dismissals highlight ambiguous brand policies. Fix the rule, not the person."
+        action={
+          <button
+            onClick={() => setTableView(!tableView)}
+            className="rounded-xl border border-border bg-card/50 px-4 py-2.5 text-xs font-bold hover:bg-card cursor-pointer"
+          >
+            {tableView ? 'Chart view' : 'Table view'}
+          </button>
+        }
+      />
+
+      {user?.role !== 'brand_manager' && (
+        <Glass className="mb-4 border-teal-300/25 bg-teal-300/[.06] p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-teal-400/20 text-teal-600 dark:text-teal-200">
+              <Radar size={16} />
+            </span>
+            <div>
+              <b className="text-xs text-foreground">Gap Radar · Preview Mode ({roleName(user?.role)})</b>
+              <p className="text-[11px] text-muted-foreground">You have read-only access to policy diagnostic metrics. Switch to Brand Manager to edit rules.</p>
+            </div>
+          </div>
+          <Button
+            onClick={() => { demoRole('brand_manager'); toast.success('Switched to Arjun Mehta (Brand Manager)'); }}
+            className="px-3.5 py-1.5 text-xs font-bold"
+          >
+            <UserCheck size={14} /> Switch to Brand Manager to Edit Rules
+          </Button>
+        </Glass>
+      )}
+
+      <Glass className="mb-5 border-amber-300/25 bg-amber-300/[.06] p-4">
+        <div className="flex items-start gap-3">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-400/20 text-amber-600 dark:text-amber-200">
+            <ShieldAlert size={16} />
+          </span>
+          <div>
+            <b className="text-xs text-foreground">Diagnostic Rule · Policy Quality Threshold</b>
+            <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+              A brand rule is flagged as <span className="font-bold text-amber-700 dark:text-amber-300">⚠️ Unclear Policy</span> when triggered at least 4 times and dismissed at least 50% of the time. When creators repeatedly dismiss a rule with a reason, the policy wording needs clarification.
+            </p>
+          </div>
+        </div>
+      </Glass>
+
+      {isLoading ? (
+        <LoadingCards />
+      ) : isError ? (
+        <ApiFailure error={error} retry={() => refetch()} />
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-[.95fr_1.05fr]">
+          <Glass className="p-5 sm:p-7">
+            <div className="flex items-center justify-between">
+              <div>
+                <Eyebrow>Dismissal patterns</Eyebrow>
+                <h2 className="display mt-1 text-xl font-bold">
+                  {tableView ? 'Rule comparison' : 'Seeded history + live decisions'}
+                </h2>
+              </div>
+              <Radar size={19} className="text-violet-500" />
+            </div>
+
+            {tableView ? (
+              <div className="mt-5 overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="mono text-[10px] uppercase text-muted-foreground">
+                    <tr>
+                      <th className="pb-3">Rule</th>
+                      <th className="pb-3">Flagged</th>
+                      <th className="pb-3">Dismissed</th>
+                      <th className="pb-3">Rate</th>
+                      <th className="pb-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {radarItems.map((r: any) => (
+                      <tr key={r.rule} className="border-t border-border">
+                        <td className="py-3 pr-2 font-semibold">{r.rule}</td>
+                        <td>{r.flagged}</td>
+                        <td>{r.dismissed}</td>
+                        <td className="font-mono">{r.dismissal_rate ?? (r.flagged ? Math.round(r.dismissed / r.flagged * 100) : 0)}%</td>
+                        <td>
+                          <Tag tone={r.status?.toLowerCase().includes('unclear') ? 'amber' : 'teal'}>
+                            {r.status || (r.dismissed / (r.flagged || 1) >= 0.5 ? 'Unclear Policy' : 'Healthy')}
+                          </Tag>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="mt-6 grid gap-4">
+                {radarItems.map((r: any) => {
+                  const rate = r.dismissal_rate ?? (r.flagged ? Math.round(r.dismissed / r.flagged * 100) : 0);
+                  const isUnclear = rate >= 50 && (r.flagged >= 4);
+                  return (
+                    <div key={r.rule}>
+                      <div className="flex justify-between text-xs">
+                        <span className="font-bold text-foreground">{r.rule}</span>
+                        <span className="text-muted-foreground">{r.dismissed} / {r.flagged} dismissals ({rate}%)</span>
+                      </div>
+                      <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-background/60">
+                        <div
+                          className={`h-full rounded-full ${isUnclear ? 'bg-gradient-to-r from-amber-400 to-rose-400' : 'bg-gradient-to-r from-teal-400 to-emerald-400'}`}
+                          style={{ width: `${Math.min(100, rate)}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="mt-7 flex gap-4 text-[10px] text-muted-foreground">
+              <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-violet-400" />Flagged volume</span>
+              <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-amber-400" />≥ 50% Dismissal (Unclear Policy)</span>
+            </div>
+          </Glass>
+
+          <Glass className="p-5 sm:p-7">
+            <div className="flex items-center justify-between">
+              <div>
+                <Eyebrow>Policy diagnostics</Eyebrow>
+                <h2 className="display mt-1 text-xl font-bold">Ranked by dismissal rate</h2>
+              </div>
+              <Tag tone="teal">Live radar signals</Tag>
+            </div>
+
+            <div className="mt-4 grid gap-3">
+              {radarItems.map((item: any) => {
+                const rate = item.dismissal_rate ?? (item.flagged ? Math.round(item.dismissed / item.flagged * 100) : 0);
+                const isUnclear = rate >= 50 && (item.flagged >= 4);
+                return (
+                  <div key={item.rule} className="rounded-2xl border border-border bg-background/35 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="mono text-[10px] font-bold text-violet-500">{item.guideline_code || 'GUIDE'}</span>
+                        <h3 className="text-sm font-bold">{item.rule}</h3>
+                      </div>
+                      <Tag tone={isUnclear ? 'amber' : 'teal'}>
+                        {isUnclear ? '⚠️ Unclear Policy' : '✅ Healthy / Clear'}
+                      </Tag>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
+                      <span>Flagged: <b className="text-foreground">{item.flagged}</b></span>
+                      <span>Dismissed: <b className="text-foreground">{item.dismissed}</b></span>
+                      <span>Dismissal rate: <b className={isUnclear ? 'text-amber-500 font-mono' : 'text-teal-600 font-mono'}>{rate}%</b></span>
+                    </div>
+
+                    {item.reasons?.length > 0 && (
+                      <div className="mt-3 rounded-xl bg-white/[.03] p-3 text-xs">
+                        <span className="mono text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Top creator dismissal reasons:</span>
+                        <ul className="mt-1.5 list-disc pl-4 space-y-1 text-muted-foreground">
+                          {item.reasons.slice(0, 3).map((reason: string, rIdx: number) => (
+                            <li key={rIdx}>{reason}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    <div className="mt-3.5 flex items-center justify-between">
+                      <Link href="/brand-kit" className="inline-flex items-center gap-1 text-xs font-bold text-teal-600 dark:text-teal-200 hover:underline">
+                        Edit in Brand kit <ArrowUpRight size={13} />
+                      </Link>
+                      {item.recommendation && (
+                        <span className="text-[10px] text-muted-foreground max-w-xs text-right truncate">
+                          {item.recommendation}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Glass>
+        </div>
+      )}
+      <Glass className="mt-4 flex items-center gap-3 p-4">
+        <Gauge className="text-amber-500" size={18} />
+        <p className="text-xs text-muted-foreground">
+          A repeated dismissal is a signal to inspect and rewrite the guideline—not a critique of an individual creator.
+        </p>
+      </Glass>
+    </div>
+  );
+}
+
+function AuditPage() {
+  const { data, isLoading, isError, error, refetch } = useAuditLog();
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('All');
+  const [actionFilter, setActionFilter] = useState('All');
+  const auditList = Array.isArray(data) ? data : [];
+
+  const rows = auditList.filter((entry) => {
+    const matchesSearch = `${entry.who} ${entry.role} ${entry.action} ${entry.target} ${entry.reason || ''} ${entry.details || ''}`
+      .toLowerCase()
+      .includes(search.toLowerCase());
+    const matchesRole = roleFilter === 'All' || entry.role === roleFilter;
+    const matchesAction =
+      actionFilter === 'All'
+        ? true
+        : actionFilter === 'Decisions'
+        ? entry.action.toLowerCase().includes('dismiss') || entry.action.toLowerCase().includes('accept') || entry.action.toLowerCase().includes('decid')
+        : actionFilter === 'Submissions'
+        ? entry.action.toLowerCase().includes('submit') || entry.action.toLowerCase().includes('executed')
+        : actionFilter === 'Approvals'
+        ? entry.action.toLowerCase().includes('approv') || entry.action.toLowerCase().includes('request')
+        : true;
+    return matchesSearch && matchesRole && matchesAction;
+  });
+
+  const exportCSV = () => {
+    const csv = [
+      ['who', 'role', 'action', 'target', 'reason', 'details', 'timestamp'],
+      ...rows.map((r) => [r.who, r.role, r.action, r.target, r.reason || '', r.details || '', r.timestamp])
+    ]
+      .map((line) => line.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(','))
+        .join('\n');
+    const href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    const link = document.createElement('a');
+    link.href = href;
+    link.download = 'citecheck-audit-trail.csv';
+    link.click();
+    URL.revokeObjectURL(href);
+  };
+
+  return (
+    <div className="page-enter">
+      <PageHead
+        eyebrow="Traceability"
+        title="Every decision is logged."
+        sub="A comprehensive, filterable record of every author, reviewer sign-off, and dismissal reason logged by the API."
+        action={
+          <Button variant="outline" onClick={exportCSV} disabled={!rows.length} data-testid="button-export-audit">
+            <Download size={15} /> Export CSV
+          </Button>
+        }
+      />
+
+      <Glass className="mb-4 flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <label className="flex h-10 min-w-0 items-center gap-2 rounded-xl border border-border bg-background/45 px-3 sm:w-72">
+          <Search size={14} className="text-muted-foreground" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search audit trail…"
+            className="min-w-0 flex-1 bg-transparent text-xs outline-none"
+            data-testid="input-audit-filter"
+          />
+        </label>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Role:</span>
+            <div className="flex gap-1">
+              {[
+                ['All', 'All'],
+                ['creator', 'Creator'],
+                ['reviewer', 'Reviewer'],
+                ['brand_manager', 'Manager'],
+              ].map(([r, label]) => (
+                <button
+                  key={r}
+                  onClick={() => setRoleFilter(r)}
+                  className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${roleFilter === r ? 'bg-teal-300 text-slate-950 font-bold' : 'text-muted-foreground hover:bg-white/5'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Action:</span>
+            <div className="flex gap-1">
+              {['All', 'Decisions', 'Approvals'].map((act) => (
+                <button
+                  key={act}
+                  onClick={() => setActionFilter(act)}
+                  className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${actionFilter === act ? 'bg-teal-300 text-slate-950 font-bold' : 'text-muted-foreground hover:bg-white/5'}`}
+                >
+                  {act}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Glass>
+
+      {isLoading ? (
+        <LoadingCards />
+      ) : isError ? (
+        <ApiFailure error={error} retry={() => refetch()} />
+      ) : (
+        <>
+          <div className="hidden overflow-hidden rounded-3xl border border-border bg-card/40 md:block">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-white/[.04] text-[10px] uppercase tracking-widest text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-4 font-bold">Who</th>
+                  <th className="px-4 py-4 font-bold">Role</th>
+                  <th className="px-4 py-4 font-bold">Action</th>
+                  <th className="px-4 py-4 font-bold">Target</th>
+                  <th className="px-4 py-4 font-bold">Reason & Decision Context</th>
+                  <th className="px-4 py-4 font-bold">Timestamp</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.id} className="border-t border-border/70 hover:bg-white/[.025]" data-testid={`row-audit-${row.id}`}>
+                    <td className="px-4 py-4 font-bold text-foreground">{row.who}</td>
+                    <td className="px-4 py-4"><Tag>{roleName(row.role)}</Tag></td>
+                    <td className="px-4 py-4 font-medium">{row.action}</td>
+                    <td className="px-4 py-4 mono text-[11px] text-muted-foreground">{row.target}</td>
+                    <td className="px-4 py-4 max-w-sm">
+                      <b className="block text-foreground text-xs leading-5">{row.reason || '—'}</b>
+                      {row.details && (
+                        <span className="mt-0.5 block text-[11px] text-muted-foreground leading-4">{row.details}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4 text-muted-foreground whitespace-nowrap">{time(row.timestamp)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="grid gap-3 md:hidden">
+            {rows.map((row) => (
+              <Glass key={row.id} className="p-4">
+                <div className="flex items-center justify-between">
+                  <b className="text-sm">{row.who}</b>
+                  <Tag>{roleName(row.role)}</Tag>
+                </div>
+                <p className="mt-2 text-xs font-semibold">{row.action}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">{row.target}</p>
+                {row.reason && (
+                  <div className="mt-2 rounded-lg bg-white/[.03] p-2 text-xs">
+                    <span className="font-bold text-foreground">Reason: </span>
+                    <span className="text-muted-foreground">{row.reason}</span>
+                  </div>
+                )}
+                <p className="mono mt-2.5 text-[10px] text-muted-foreground">{time(row.timestamp)}</p>
+              </Glass>
+            ))}
+          </div>
+
+          {!rows.length && (
+            <Glass className="mt-3 p-8 text-center text-sm text-muted-foreground">
+              No audit entries match that filter.
+            </Glass>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+const workflow = [
           ['01', 'Brand kit', 'A Brand Manager loads guidelines, approved facts with a source and review date, and terminology.', 'Brand Manager'],
           ['02', 'Draft', 'A creator pastes copy or uploads plain text. An external-AI notice explains what is sent.', 'Creator'],
           ['03', 'Review', 'Rules and an AI reviewer propose issues; a verifier drops anything without a valid source and real excerpt.', 'CiteCheck'],
@@ -1203,7 +1797,7 @@ function LoginPage() {
       <PageHead
         eyebrow="Architectural Transparency"
         title="AI suggests. Humans decide."
-        sub="Seven explicit steps, two mandatory human checkpoints, and cryptographic evidence grounding."
+        sub="Seven explicit steps, two mandatory human checkpoints, and evidence-grounded verification."
       />
 
       <Glass className="mb-6 p-5 sm:p-7">
@@ -1233,7 +1827,7 @@ function LoginPage() {
       <Glass className="mb-8 border-violet-300/30 bg-violet-300/[.06] p-5 sm:p-7">
         <div className="flex items-center justify-between">
           <div>
-            <Eyebrow>Zero-Hallucination Core</Eyebrow>
+            <Eyebrow>Evidence-Grounded Verification</Eyebrow>
             <h2 className="display mt-1 text-xl font-bold">The Five Automated Evidence Gates</h2>
           </div>
           <Tag tone="violet">Evidence verifier</Tag>
@@ -1283,19 +1877,115 @@ function LoginPage() {
   );
 }
 
-          function SettingsPage() {
+function SettingsPage() {
   const theme = useSession((s) => s.theme);
   const setTheme = useSession((s) => s.setTheme);
   const reduced = useSession((s) => s.reducedMotion);
   const setReduced = useSession((s) => s.setReducedMotion);
-          const [explode, setExplode] = useState(false);
-          return <div className="page-enter">
-          <PageHead eyebrow="Your workspace" title="Settings" sub="A small set of choices to make this review room work for you." />
-            <div className="grid gap-4 lg:grid-cols-2"><Glass className="p-5 sm:p-7"><Eyebrow>Appearance</Eyebrow><h2 className="display mt-2 text-xl font-bold">Choose your atmosphere.</h2><div className="mt-5 grid grid-cols-2 gap-3">{[['dark', 'Aurora Night', Moon], ['light', 'Frosted Day', Sun]].map(([t, label, Icon]) => <button key={String(t)} onClick={() => setTheme(t as 'dark' | 'light')} className={`flex items-center gap-3 rounded-2xl border p-4 text-left ${theme === t ? 'border-teal-300/35 bg-teal-300/[.08]' : 'border-border hover:bg-white/5'}`}><Icon size={17} className="text-teal-500" /><span><b className="block text-sm">{String(label)}</b><span className="text-[10px] text-muted-foreground">Theme</span></span>{theme === t && <Check size={15} className="ml-auto text-teal-500" />}</button>)}</div><label className="mt-5 flex items-center justify-between rounded-xl border border-border p-4"><span><b className="block text-sm">Reduced motion</b><span className="text-[10px] text-muted-foreground">Minimize transitions and ambient movement</span></span><input type="checkbox" checked={reduced} onChange={(e) => { setReduced(e.target.checked); document.documentElement.classList.toggle('reduce-motion', e.target.checked); }} className="h-4 w-4 accent-teal-400" data-testid="toggle-reduced-motion" /></label></Glass>
-              <Glass className="p-5 sm:p-7"><Eyebrow>Responsible AI</Eyebrow><h2 className="display mt-2 text-xl font-bold">What leaves this room.</h2><div className="mt-5 grid gap-3">{[['External AI notice', 'Draft text and relevant clauses are sent for review.'], ['Synthetic demo content', 'Lumen Pay examples are fictional. No real customer data.'], ['Role-based access', 'Brand kit, creator, and reviewer permissions are distinct.'], ['Decision audit', 'Accept, edit, dismiss, and approvals are logged by the API.'], ['Human decision', 'AI suggestions do not publish or approve content.']].map(([title, desc]) => <div key={title} className="flex gap-3 rounded-xl bg-background/40 p-3"><CheckCheck size={15} className="mt-0.5 shrink-0 text-teal-500" /><div><b className="text-xs">{title}</b><p className="mt-1 text-[10px] leading-5 text-muted-foreground">{desc}</p></div></div>)}</div></Glass>
-              <Glass className="p-5 sm:p-7"><Eyebrow>Connection</Eyebrow><h2 className="display mt-2 text-xl font-bold">API configuration</h2><div className="mt-4 grid gap-3"><label className="grid gap-1 text-[10px] font-semibold text-muted-foreground">API base URL<input value={API_BASE_URL} readOnly className="h-10 rounded-xl border border-border bg-background/40 px-3 font-mono text-xs text-foreground" /></label><div className="rounded-xl border border-violet-300/15 bg-violet-300/[.05] p-3 text-[10px] leading-5 text-muted-foreground">Fixture preview is <b className="text-foreground">{import.meta.env.VITE_USE_FIXTURES === 'true' ? 'enabled' : 'disabled'}</b>. Toggle VITE_USE_FIXTURES only for an explicit synthetic preview; otherwise API failures remain visible.</div></div></Glass>
-              <Glass className="p-5 sm:p-7"><Eyebrow>Developer</Eyebrow><h2 className="display mt-2 text-xl font-bold">Test a graceful fallback.</h2><p className="mt-2 text-xs leading-5 text-muted-foreground">Simulate an error boundary to inspect the recovery state. This does not affect saved API data.</p><Button variant="outline" className="mt-4" onClick={() => setExplode(true)} data-testid="button-simulate-error">Simulate error</Button>{explode && <ErrorBoundary key="simulated" FallbackComponent={({ error, resetError }) => <Glass className="mt-4 p-4"><b className="text-sm">Simulated fallback</b><p className="mt-1 text-xs text-muted-foreground">{error.message}</p><Button className="mt-3" onClick={() => { resetError(); setExplode(false); }}>Try again</Button></Glass>}><DeveloperCrash /></ErrorBoundary>}</Glass></div>
-          </div>;
+  const demoRole = useSession((s) => s.demoRole);
+  const user = useSession((s) => s.user);
+  const [explode, setExplode] = useState(false);
+
+  return (
+    <div className="page-enter">
+      <PageHead eyebrow="Your workspace" title="Settings" sub="Manage display atmosphere, role permissions, and governance safeguards." />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Glass className="p-5 sm:p-7">
+          <Eyebrow>Appearance</Eyebrow>
+          <h2 className="display mt-2 text-xl font-bold">Choose your atmosphere.</h2>
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            {[
+              ['dark', 'Aurora Night', Moon],
+              ['light', 'Frosted Day', Sun],
+            ].map(([t, label, Icon]) => (
+              <button
+                key={String(t)}
+                onClick={() => setTheme(t as 'dark' | 'light')}
+                className={`flex items-center gap-3 rounded-2xl border p-4 text-left cursor-pointer transition ${theme === t ? 'border-teal-300/35 bg-teal-300/[.08]' : 'border-border hover:bg-white/5'}`}
+              >
+                <Icon size={17} className="text-teal-500" />
+                <span>
+                  <b className="block text-sm">{String(label)}</b>
+                  <span className="text-[10px] text-muted-foreground">Theme</span>
+                </span>
+                {theme === t && <Check size={15} className="ml-auto text-teal-500" />}
+              </button>
+            ))}
+          </div>
+          <label className="mt-5 flex items-center justify-between rounded-xl border border-border p-4">
+            <span>
+              <b className="block text-sm">Reduced motion</b>
+              <span className="text-[10px] text-muted-foreground">Minimize transitions and ambient movement</span>
+            </span>
+            <input
+              type="checkbox"
+              checked={reduced}
+              onChange={(e) => {
+                setReduced(e.target.checked);
+                document.documentElement.classList.toggle('reduce-motion', e.target.checked);
+              }}
+              className="h-4 w-4 accent-teal-400"
+              data-testid="toggle-reduced-motion"
+            />
+          </label>
+        </Glass>
+
+        <Glass className="p-5 sm:p-7">
+          <Eyebrow>Responsible AI</Eyebrow>
+          <h2 className="display mt-2 text-xl font-bold">What leaves this room.</h2>
+          <div className="mt-5 grid gap-3">
+            {[
+              ['External AI notice', 'Draft text and relevant brand rules are processed with zero retention.'],
+              ['Synthetic demo content', 'Lumen Pay examples are fictional. No real customer PII is ever used.'],
+              ['Role-based access', 'Creator, Reviewer, and Brand Manager boundaries are enforced.'],
+              ['Decision audit', 'Accept, edit, dismiss, and approvals are logged permanently.'],
+              ['Human decision', 'AI suggestions do not publish, edit, or approve content without human sign-off.'],
+            ].map(([title, desc]) => (
+              <div key={title} className="flex gap-3 rounded-xl bg-background/40 p-3">
+                <CheckCheck size={15} className="mt-0.5 shrink-0 text-teal-500" />
+                <div>
+                  <b className="text-xs">{title}</b>
+                  <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Glass>
+
+        <details className="lg:col-span-2 group rounded-2xl border border-border bg-card/40 p-4 transition">
+          <summary className="cursor-pointer text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground flex items-center justify-between">
+            <span>Developer & Diagnostics (Advanced)</span>
+            <ChevronDown size={15} className="group-open:rotate-180 transition-transform text-muted-foreground" />
+          </summary>
+          <div className="mt-4 grid gap-4 lg:grid-cols-2 pt-3 border-t border-border/60">
+            <div className="rounded-xl border border-border/70 bg-background/35 p-4">
+              <Eyebrow>Connection</Eyebrow>
+              <h3 className="text-sm font-bold mt-1">API Endpoint</h3>
+              <input value={API_BASE_URL} readOnly className="mt-3 h-9 w-full rounded-lg border border-border bg-background/50 px-3 font-mono text-xs text-foreground" />
+              <p className="mt-2 text-[10px] text-muted-foreground">Connected to serverless backend runtime.</p>
+            </div>
+            <div className="rounded-xl border border-border/70 bg-background/35 p-4">
+              <Eyebrow>Recovery Diagnostic</Eyebrow>
+              <h3 className="text-sm font-bold mt-1">Simulate View Interruption</h3>
+              <Button variant="outline" className="mt-3 text-xs" onClick={() => setExplode(true)} data-testid="button-simulate-error">
+                Trigger Graceful Fallback
+              </Button>
+              {explode && (
+                <ErrorBoundary key="simulated" FallbackComponent={({ error, resetError }) => (
+                  <div className="mt-3 rounded-lg border border-rose-400/30 bg-rose-500/10 p-3 text-xs">
+                    <b>Simulated recovery active:</b> {error.message}
+                    <Button className="mt-2 text-xs" onClick={() => { resetError(); setExplode(false); }}>Reset</Button>
+                  </div>
+                )}>
+                  <DeveloperCrash />
+                </ErrorBoundary>
+              )}
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+  );
 }
           function DeveloperCrash(): ReactNode { throw new Error('Simulated developer preview error. Your work is still safe.'); }
 

@@ -68,18 +68,21 @@ export const findings: Finding[] = [
   { id: 'F-102', draft_id: 'draft-1', excerpt: 'zero fees forever', start: 50, end: 68, type: 'Claim', severity: 'high', source: 'ai', source_ref_id: 'FACT-03', reason: 'Pricing is reviewed quarterly. An absolute lifetime promise is not supported. Note: cited FACT-03 review date expired.', suggested_fix: 'fees reviewed quarterly', fix_needs_human: true, confidence: .91, status: 'open' },
   { id: 'F-103', draft_id: 'draft-3', excerpt: 'military-grade', start: 24, end: 38, type: 'Banned phrase', severity: 'medium', source: 'rules', source_ref_id: 'GUIDE-04', reason: 'This phrase is not approved. Describe a specific, verifiable control.', suggested_fix: 'security designed around clear, specific safeguards', fix_needs_human: false, confidence: 1, status: 'open' },
   { id: 'F-104', draft_id: 'draft-3', excerpt: 'UPI transaction', start: 61, end: 76, type: 'Terminology', severity: 'low', source: 'rules', source_ref_id: 'TERM-01', reason: 'Use the preferred product terminology.', suggested_fix: 'UPI payment', fix_needs_human: false, confidence: 1, status: 'open' },
-  { id: 'F-105', draft_id: 'draft-2', excerpt: 'up to 15%', start: 10, end: 18, type: 'Claim', severity: 'medium', source: 'ai', source_ref_id: 'FACT-11', reason: 'The referenced offer fact (FACT-11) has an overdue review date (2026-06-30). Human verification required.', suggested_fix: 'up to 15% (confirm offer eligibility and dates)', fix_needs_human: true, confidence: .72, status: 'open' },
+  { id: 'F-105', draft_id: 'draft-2', excerpt: 'cashback up to 15%', start: 36, end: 54, type: 'Claim', severity: 'high', source: 'ai', source_ref_id: 'FACT-11', reason: 'The cited fact FACT-11 (Launch cashback) expired on 2026-06-30. Overdue promotional rate requires human confirmation.', suggested_fix: 'cashback up to 10% (confirm current promotional campaign approval)', fix_needs_human: true, confidence: .72, status: 'open' },
 ];
 
 export const drafts: Draft[] = [
   { id: 'draft-1', title: 'app-store-listing.md', text: sampleText, version: 2, status: 'Changes requested', updated_at: '2026-10-30T14:20:00Z', findings_count: 2 },
-  { id: 'draft-2', title: 'launch-email.md', text: 'Get cashback up to 15% on every payment this month.', version: 3, status: 'In review', updated_at: '2026-10-29T16:05:00Z', findings_count: 1 },
+  { id: 'draft-2', title: 'launch-email.md', text: 'Join Lumen Pay today. Get promotional cashback up to 15% on qualifying payments this month only.', version: 3, status: 'In review', updated_at: '2026-10-29T16:05:00Z', findings_count: 1 },
   { id: 'draft-3', title: 'blog-security.md', text: 'Our military-grade security protects each UPI transaction.', version: 1, status: 'Draft', updated_at: '2026-10-28T09:40:00Z', findings_count: 2 },
 ];
 
 export const versions: Version[] = [
   { id: 'v-1', version: 1, text: 'Lumen Pay is a wallet for everyday payments.', created_at: '2026-10-28T10:00:00Z' },
   { id: 'v-2', version: 2, text: sampleText, created_at: '2026-10-30T14:20:00Z' },
+  { id: 'v-2-1', version: 1, text: 'Join Lumen Pay today and experience instant UPI payments across India.', created_at: '2026-10-27T10:00:00Z' },
+  { id: 'v-2-2', version: 2, text: 'Join Lumen Pay today and get guaranteed unlimited cashback on every payment this year.', created_at: '2026-10-28T14:00:00Z' },
+  { id: 'v-2-3', version: 3, text: 'Join Lumen Pay today. Get promotional cashback up to 15% on qualifying payments this month only.', created_at: '2026-10-29T16:05:00Z' },
 ];
 
 export const audit: AuditItem[] = [

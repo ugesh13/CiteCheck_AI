@@ -24,7 +24,7 @@ export function useDecision(draftId: string) {
   return useMutation({ mutationFn: ({ id, ...data }: { id: string; action: 'accept' | 'edit' | 'dismiss'; reason?: string; edited_fix?: string }) => api.decision(id, data),
     onMutate: async ({ id, action }) => { await client.cancelQueries({ queryKey: keys.findings(draftId) }); const previous = client.getQueryData<any[]>(keys.findings(draftId)); client.setQueryData<any[]>(keys.findings(draftId), (old) => old?.map((f) => f.id === id ? { ...f, status: action === 'dismiss' ? 'dismissed' : 'resolved' } : f)); return { previous }; },
     onError: (_e, _v, context) => client.setQueryData(keys.findings(draftId), context?.previous),
-    onSettled: () => { client.invalidateQueries({ queryKey: keys.findings(draftId) }); client.invalidateQueries({ queryKey: keys.audit }); },
+    onSettled: () => { client.invalidateQueries({ queryKey: keys.findings(draftId) }); client.invalidateQueries({ queryKey: keys.audit }); client.invalidateQueries({ queryKey: keys.radar }); client.invalidateQueries({ queryKey: keys.drafts }); },
   });
 }
 export function useReviewRun(draftId: string) {

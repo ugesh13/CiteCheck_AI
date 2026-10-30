@@ -76,7 +76,7 @@ MEM_DRAFTS: Dict[str, Dict[str, Any]] = {
     "draft-2": {
         "id": "draft-2",
         "title": "launch-email.md",
-        "text": "Get cashback up to 15% on every payment this month.",
+        "text": "Join Lumen Pay today. Get promotional cashback up to 15% on qualifying payments this month only.",
         "version": 3,
         "status": "In review",
         "updated_at": "2026-10-29T16:05:00Z",
@@ -95,16 +95,39 @@ MEM_DRAFTS: Dict[str, Dict[str, Any]] = {
 
 MEM_VERSIONS: Dict[str, List[Dict[str, Any]]] = {
     "draft-1": [
-        {"id": "v-1", "version": 1, "text": "Lumen Pay is a wallet for everyday payments.", "created_at": "2026-03-12T10:00:00Z"},
-        {"id": "v-2", "version": 2, "text": "Lumen Pay is India’s most trusted wallet and charges zero fees forever.", "created_at": "2026-03-14T11:20:00Z"},
-    ]
+        {"id": "v-1", "version": 1, "text": "Lumen Pay is a wallet for everyday payments.", "created_at": "2026-10-28T10:00:00Z"},
+        {"id": "v-2", "version": 2, "text": "Lumen Pay is India’s most trusted wallet and charges zero fees forever.", "created_at": "2026-10-30T14:20:00Z"},
+    ],
+    "draft-2": [
+        {"id": "v-2-1", "version": 1, "text": "Join Lumen Pay today and experience instant UPI payments across India.", "created_at": "2026-10-27T10:00:00Z"},
+        {"id": "v-2-2", "version": 2, "text": "Join Lumen Pay today and get guaranteed unlimited cashback on every payment this year.", "created_at": "2026-10-28T14:00:00Z"},
+        {"id": "v-2-3", "version": 3, "text": "Join Lumen Pay today. Get promotional cashback up to 15% on qualifying payments this month only.", "created_at": "2026-10-29T16:05:00Z"},
+    ],
 }
 
 MEM_FINDINGS: Dict[str, List[Dict[str, Any]]] = {
     "draft-1": [
         {"id": "F-101", "draft_id": "draft-1", "excerpt": "most trusted wallet", "start": 18, "end": 37, "type": "Claim", "severity": "high", "source": "ai", "source_ref_id": "FACT-07", "reason": "A superlative needs current evidence. No approved fact supports “most trusted”.", "suggested_fix": "a wallet built for simple, everyday payments", "fix_needs_human": False, "confidence": 0.94, "status": "open"},
         {"id": "F-102", "draft_id": "draft-1", "excerpt": "zero fees forever", "start": 50, "end": 68, "type": "Claim", "severity": "high", "source": "ai", "source_ref_id": "FACT-03", "reason": "Pricing is reviewed quarterly. An absolute lifetime promise is not supported.", "suggested_fix": "fees reviewed quarterly", "fix_needs_human": True, "confidence": 0.91, "status": "open"},
-    ]
+    ],
+    "draft-2": [
+        {
+            "id": "F-105",
+            "draft_id": "draft-2",
+            "excerpt": "cashback up to 15%",
+            "start": 36,
+            "end": 54,
+            "type": "Claim",
+            "severity": "high",
+            "source": "ai",
+            "source_ref_id": "FACT-11",
+            "reason": "The cited fact FACT-11 (Launch cashback) expired on 2026-06-30. Overdue promotional rate requires human confirmation.",
+            "suggested_fix": "cashback up to 10% (confirm current promotional campaign approval)",
+            "fix_needs_human": True,
+            "confidence": 0.72,
+            "status": "open",
+        }
+    ],
 }
 
 MEM_COMMENTS: Dict[str, List[Dict[str, Any]]] = {
@@ -467,13 +490,32 @@ def apply_decision(finding_id: str, body: DecisionInput):
                 "created_at": draft["updated_at"],
             })
 
+    # Live update Gap Radar on dismissal
+    if body.action == "dismiss":
+        rule_code = target_finding.get("source_ref_id", "")
+        matched = None
+        for item in MEM_GAP_RADAR:
+            if item.get("guideline_id") == rule_code or item.get("guideline_code") == rule_code:
+                matched = item
+                break
+        if not matched:
+            matched = MEM_GAP_RADAR[1] if len(MEM_GAP_RADAR) > 1 else MEM_GAP_RADAR[0]
+        matched["flagged"] += 1
+        matched["dismissed"] += 1
+        matched["dismissal_rate"] = round((matched["dismissed"] / matched["flagged"]) * 100, 1)
+        matched["status"] = "Unclear Policy" if (matched["flagged"] >= 4 and matched["dismissal_rate"] >= 50.0) else "Healthy / Clear"
+        if body.reason and body.reason not in matched.get("reasons", []):
+            matched.setdefault("reasons", []).insert(0, body.reason)
+
     MEM_AUDIT.insert(0, {
         "id": f"a-{uuid4().hex[:6]}",
-        "who": "Reviewer",
-        "role": "reviewer",
-        "action": f"Decided '{body.action}' on finding",
-        "target": target_finding.get("excerpt", finding_id),
+        "who": "Meera Nair",
+        "role": "creator",
+        "action": "Dismissed finding with reason" if body.action == "dismiss" else ("Accepted suggested fix" if body.action == "accept" else "Edited finding"),
+        "target": f"{draft.get('title', 'Draft') if draft else 'Draft'} · {finding_id}",
         "timestamp": datetime.now(timezone.utc).isoformat(),
+        "reason": body.reason or ("Suggested fix accepted and merged" if body.action == "accept" else "Finding edited"),
+        "details": f"Rule {target_finding.get('source_ref_id', '')} - Excerpt: {target_finding.get('excerpt', '')}",
     })
 
     return {
@@ -577,6 +619,90 @@ def add_comment(draft_id: str, body: CommentInput):
 
 
 # ─── 7. Analytics & Gap Radar ────────────────────────────────────────────────
+MEM_GAP_RADAR: List[Dict[str, Any]] = [
+    {
+        "rule": "Security language",
+        "guideline_id": "GUIDE-04",
+        "guideline_code": "GUIDE-04",
+        "category": "tone",
+        "flagged": 10,
+        "accepted": 4,
+        "dismissed": 6,
+        "dismissal_rate": 60.0,
+        "status": "Unclear Policy",
+        "reasons": [
+            "Technical spec required specific cipher/TLS version",
+            "Rule is too rigid for engineer-facing API docs",
+            "Context was standard security control, not marketing hype",
+        ],
+        "recommendation": "Update guideline to clarify allowed technical descriptions (TLS 1.3, AES-256) vs marketing hype.",
+    },
+    {
+        "rule": "Claims need proof",
+        "guideline_id": "GUIDE-01",
+        "guideline_code": "GUIDE-01",
+        "category": "claim",
+        "flagged": 14,
+        "accepted": 7,
+        "dismissed": 7,
+        "dismissal_rate": 50.0,
+        "status": "Unclear Policy",
+        "reasons": [
+            "Pre-approved campaign exception by Legal Counsel",
+            "Customer testimonial quote, not company assertion",
+            "Descriptive benefit, not an absolute claim",
+        ],
+        "recommendation": "Add explicit guidance and exemptions for quoted customer testimonials.",
+    },
+    {
+        "rule": "No lifetime promises",
+        "guideline_id": "GUIDE-09",
+        "guideline_code": "GUIDE-09",
+        "category": "claim",
+        "flagged": 6,
+        "accepted": 3,
+        "dismissed": 3,
+        "dismissal_rate": 50.0,
+        "status": "Unclear Policy",
+        "reasons": [
+            "Quarterly promotional fee lock confused with lifetime guarantee",
+            "Referencing historical launch terms",
+        ],
+        "recommendation": "Clarify boundary between temporary promotional pricing and permanent promises.",
+    },
+    {
+        "rule": "Payments terminology",
+        "guideline_id": "GUIDE-03",
+        "guideline_code": "GUIDE-03",
+        "category": "terminology",
+        "flagged": 12,
+        "accepted": 11,
+        "dismissed": 1,
+        "dismissal_rate": 8.3,
+        "status": "Healthy / Clear",
+        "reasons": [
+            "Context was technical banking protocol spec",
+        ],
+        "recommendation": "Guideline is performing well with high adherence (91.7%).",
+    },
+    {
+        "rule": "Numbers and dates",
+        "guideline_id": "GUIDE-05",
+        "guideline_code": "GUIDE-05",
+        "category": "formatting",
+        "flagged": 9,
+        "accepted": 7,
+        "dismissed": 2,
+        "dismissal_rate": 22.2,
+        "status": "Healthy / Clear",
+        "reasons": [
+            "Date format specified by platform app store guideline",
+        ],
+        "recommendation": "Guideline is performing well with clear adherence (77.8%).",
+    },
+]
+
+
 @router.get("/api/gap-radar")
 @router.get("/api/gap-radar/")
 @router.get("/api/v1/gap-radar")
@@ -586,84 +712,7 @@ def get_gap_radar():
     Surfaces brand guidelines with highest dismissal rates.
     Diagnostic Rule: Flagged as 'Unclear Policy' when triggered >= 4 times and dismissal rate >= 50%.
     """
-    return [
-        {
-            "rule": "Security language",
-            "guideline_id": "GUIDE-04",
-            "guideline_code": "GUIDE-04",
-            "category": "tone",
-            "flagged": 10,
-            "accepted": 4,
-            "dismissed": 6,
-            "dismissal_rate": 60.0,
-            "status": "Unclear Policy",
-            "reasons": [
-                "Technical spec required specific cipher/TLS version",
-                "Rule is too rigid for engineer-facing API docs",
-                "Context was standard security control, not marketing hype"
-            ],
-            "recommendation": "Update guideline to clarify allowed technical descriptions (TLS 1.3, AES-256) vs marketing hype.",
-        },
-        {
-            "rule": "Claims need proof",
-            "guideline_id": "GUIDE-01",
-            "guideline_code": "GUIDE-01",
-            "category": "claim",
-            "flagged": 14,
-            "accepted": 7,
-            "dismissed": 7,
-            "dismissal_rate": 50.0,
-            "status": "Unclear Policy",
-            "reasons": [
-                "Pre-approved campaign exception by Legal Counsel",
-                "Customer testimonial quote, not company assertion",
-                "Descriptive benefit, not an absolute claim"
-            ],
-            "recommendation": "Add explicit guidance and exemptions for quoted customer testimonials.",
-        },
-        {
-            "rule": "No lifetime promises",
-            "guideline_id": "GUIDE-09",
-            "guideline_code": "GUIDE-09",
-            "category": "claim",
-            "flagged": 6,
-            "accepted": 3,
-            "dismissed": 3,
-            "dismissal_rate": 50.0,
-            "status": "Unclear Policy",
-            "reasons": [
-                "Quarterly promotional fee lock confused with lifetime guarantee",
-                "Referencing historical launch terms"
-            ],
-            "recommendation": "Clarify boundary between temporary promotional pricing and permanent promises.",
-        },
-        {
-            "rule": "Plainspoken confidence",
-            "guideline_id": "GUIDE-02",
-            "guideline_code": "GUIDE-02",
-            "category": "tone",
-            "flagged": 9,
-            "accepted": 7,
-            "dismissed": 2,
-            "dismissal_rate": 22.2,
-            "status": "Healthy / Clear",
-            "reasons": ["Needs clearer before/after examples"],
-            "recommendation": "Guideline is well-understood; creators consistently accept suggestions.",
-        },
-        {
-            "rule": "Payments terminology",
-            "guideline_id": "GUIDE-03",
-            "guideline_code": "GUIDE-03",
-            "category": "terminology",
-            "flagged": 12,
-            "accepted": 11,
-            "dismissed": 1,
-            "dismissal_rate": 8.3,
-            "status": "Healthy / Clear",
-            "reasons": ["Third-party banking API specification"],
-            "recommendation": "High adherence (92% acceptance rate); keep as standard.",
-        },
-    ]
+    return MEM_GAP_RADAR
 
 
 @router.get("/api/audit-log")
