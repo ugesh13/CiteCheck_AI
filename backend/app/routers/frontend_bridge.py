@@ -974,3 +974,49 @@ async def parse_docx_file(file: UploadFile = File(...)):
     filename = file.filename or "uploaded-document.docx"
     content = await file.read()
     return parse_docx_structure(content, filename=filename)
+
+
+# ─── 10. Unified Dashboard Metrics Query Layer ──────────────────────────────
+@router.get("/api/dashboard/metrics")
+@router.get("/api/v1/dashboard/metrics")
+def get_dashboard_metrics():
+    """
+    Single unified query layer computing all dashboard metrics from raw store records.
+    Guarantee: 'open_findings' counts strictly status == 'open' findings.
+    """
+    store = get_store()
+    drafts = store.list_drafts()
+
+    draft_pulse = {"Draft": 0, "In review": 0, "Changes requested": 0, "Approved": 0}
+    for d in drafts:
+        st = d.get("status", "Draft")
+        if st in draft_pulse:
+            draft_pulse[st] += 1
+        else:
+            draft_pulse[st] = 1
+
+    open_findings = 0
+    resolved_findings = 0
+    for d in drafts:
+        findings = store.get_findings(d["id"])
+        for f in findings:
+            if f.get("status") == "open":
+                open_findings += 1
+            else:
+                resolved_findings += 1
+
+    facts_health = store.get_facts_health()
+    chain_res = store.verify_chain_integrity()
+
+    return {
+        "draft_pulse": draft_pulse,
+        "total_drafts": len(drafts),
+        "open_findings": open_findings,
+        "resolved_findings": resolved_findings,
+        "total_findings": open_findings + resolved_findings,
+        "review_queue_size": draft_pulse.get("In review", 0),
+        "facts_health": facts_health,
+        "audit_events_count": chain_res.get("total_records", 0),
+        "audit_chain_valid": chain_res.get("valid", False),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }

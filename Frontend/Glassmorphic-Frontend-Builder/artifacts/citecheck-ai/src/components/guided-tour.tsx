@@ -31,17 +31,6 @@ export interface TourStep {
 export const TOUR_STEPS: TourStep[] = [
   {
     step: 1,
-    role: 'brand_manager',
-    title: 'Brand Kit: Facts & Governance Expiry',
-    subtitle: 'Ground Truth with Expiry Dates',
-    description:
-      'Brand managers maintain approved facts with real review dates. Inspect expired facts (e.g. FACT-03 Pricing review) and expiring facts. Gate 5 uses these to block publication of stale evidence.',
-    targetPath: '/brand-kit',
-    actionText: 'Inspect Brand Kit Facts',
-    badge: 'Brand Governance',
-  },
-  {
-    step: 2,
     role: 'creator',
     title: 'Document Ingestion: DOCX & Markdown',
     subtitle: 'Extract Hierarchy & Structured Tables',
@@ -52,7 +41,7 @@ export const TOUR_STEPS: TourStep[] = [
     badge: 'Ingestion Engine',
   },
   {
-    step: 3,
+    step: 2,
     role: 'creator',
     title: 'Five-Gate Engine: Live Review',
     subtitle: 'Rules + LLM Verification Pipeline',
@@ -63,7 +52,7 @@ export const TOUR_STEPS: TourStep[] = [
     badge: '5-Gate Engine',
   },
   {
-    step: 4,
+    step: 3,
     role: 'creator',
     title: 'Per-Finding 5-Gate Trace Inspection',
     subtitle: 'Schema · Source · Quote · Guardrails · Freshness',
@@ -74,7 +63,7 @@ export const TOUR_STEPS: TourStep[] = [
     badge: 'Traceability',
   },
   {
-    step: 5,
+    step: 4,
     role: 'creator',
     title: 'Human Review Checkpoint: Dismissal Loop',
     subtitle: 'AI Suggests, Humans Decide',
@@ -83,6 +72,17 @@ export const TOUR_STEPS: TourStep[] = [
     targetPath: '/gap-radar',
     actionText: 'Open Guideline Gap Radar',
     badge: 'Living Feedback',
+  },
+  {
+    step: 5,
+    role: 'brand_manager',
+    title: 'Brand Kit: Facts & Governance Expiry',
+    subtitle: 'Ground Truth with Expiry Dates',
+    description:
+      'Brand managers maintain approved facts with real review dates. Inspect expired facts (e.g. FACT-03 Pricing review) and expiring facts. Gate 5 uses these to block publication of stale evidence.',
+    targetPath: '/brand-kit',
+    actionText: 'Inspect Brand Kit Facts',
+    badge: 'Brand Governance',
   },
   {
     step: 6,
@@ -133,10 +133,10 @@ export function GuidedTour() {
     } catch {}
   };
 
-  const handleAction = () => {
+  const handleAction = async () => {
     // Automatically switch to the recommended persona for this step if needed
     if (user?.role !== currentStep.role) {
-      demoRole(currentStep.role);
+      await demoRole(currentStep.role);
       toast.success(`Switched role to ${roleName(currentStep.role)} for Step ${currentStep.step}`);
     }
     setPath(currentStep.targetPath);

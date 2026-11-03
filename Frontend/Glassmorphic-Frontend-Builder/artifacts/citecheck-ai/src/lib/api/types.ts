@@ -69,6 +69,8 @@ export type Draft = {
   status: string;
   updated_at: string;
   findings_count?: number;
+  open_findings_count?: number;
+  is_seed?: boolean;
 };
 
 export type BrandKit = {

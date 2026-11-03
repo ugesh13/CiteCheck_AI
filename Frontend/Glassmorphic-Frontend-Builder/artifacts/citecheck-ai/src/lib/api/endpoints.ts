@@ -69,6 +69,20 @@ export const api = {
   deleteKitItem: (kind: 'guidelines' | 'facts' | 'terms', id: string) =>
     request(`/${kind}/${id}`, 'DELETE'),
 
+  dashboardMetrics: () =>
+    request<{
+      draft_pulse: Record<string, number>;
+      total_drafts: number;
+      open_findings: number;
+      resolved_findings: number;
+      total_findings: number;
+      review_queue_size: number;
+      facts_health: { expired: number; expiring: number; active: number };
+      audit_events_count: number;
+      audit_chain_valid: boolean;
+      timestamp: string;
+    }>('/dashboard/metrics', 'GET'),
+
   drafts: async () => {
     const res = await request<Draft[]>('/drafts');
     return Array.isArray(res) ? res : [];

@@ -326,6 +326,8 @@ def generate_seed_data() -> Dict[str, Any]:
             "status": "Changes requested",
             "updated_at": (now_dt - timedelta(hours=3)).isoformat(),
             "findings_count": 2,
+            "open_findings_count": 1,
+            "is_seed": True,
         },
         "draft-2": {
             "id": "draft-2",
@@ -335,6 +337,8 @@ def generate_seed_data() -> Dict[str, Any]:
             "status": "In review",
             "updated_at": (now_dt - timedelta(hours=5)).isoformat(),
             "findings_count": 1,
+            "open_findings_count": 1,
+            "is_seed": True,
         },
         "draft-3": {
             "id": "draft-3",
@@ -344,6 +348,19 @@ def generate_seed_data() -> Dict[str, Any]:
             "status": "Draft",
             "updated_at": (now_dt - timedelta(days=1)).isoformat(),
             "findings_count": 2,
+            "open_findings_count": 2,
+            "is_seed": True,
+        },
+        "draft-4": {
+            "id": "draft-4",
+            "title": "security-faq.md",
+            "text": "Lumen Pay uses TLS 1.3 encryption and device binding for secure UPI payments.",
+            "version": 1,
+            "status": "Approved",
+            "updated_at": (now_dt - timedelta(days=7)).isoformat(),
+            "findings_count": 0,
+            "open_findings_count": 0,
+            "is_seed": True,
         },
     }
 
@@ -357,8 +374,12 @@ def generate_seed_data() -> Dict[str, Any]:
             {"id": "v-2-2", "version": 2, "text": "Join Lumen Pay today and get guaranteed unlimited cashback on every payment this year.", "created_at": (now_dt - timedelta(days=2)).isoformat(), "locked": True},
             {"id": "v-2-3", "version": 3, "text": "Join Lumen Pay today. Get promotional cashback up to 15% on qualifying payments this month only.", "created_at": (now_dt - timedelta(hours=5)).isoformat(), "locked": False},
         ],
+        "draft-4": [],
         "draft-3": [
-            {"id": "v-3-1", "version": 1, "text": "Our military-grade security protects each UPI transaction.", "created_at": (now_dt - timedelta(days=1)).isoformat(), "locked": False},
+            {"id": "v-3-1", "version": 1, "text": "Our military-grade security protects each UPI transaction.", "created_at": (now_dt - timedelta(days=1)).isoformat(), "locked": False, "is_seed": True},
+        ],
+        "draft-4": [
+            {"id": "v-4-1", "version": 1, "text": "Lumen Pay uses TLS 1.3 encryption and device binding for secure UPI payments.", "created_at": (now_dt - timedelta(days=7)).isoformat(), "locked": True, "locked_by": "Nisha Rao", "is_seed": True},
         ],
     }
 
@@ -381,7 +402,7 @@ def generate_seed_data() -> Dict[str, Any]:
                 "suggested_fix": "a wallet built for simple, everyday payments",
                 "fix_needs_human": False,
                 "confidence": 0.94,
-                "status": "open",
+                "status": "accepted",
                 "paragraph_ref": "p-1",
                 "verification_trace": [
                     {"gate": 1, "name": "Schema Validation", "result": "passed", "message": "Valid Pydantic candidate structure", "evidence": "Schema v2"},
@@ -435,7 +456,8 @@ def generate_seed_data() -> Dict[str, Any]:
                 "suggested_fix": "cashback up to 10% (confirm current promotional campaign approval)",
                 "fix_needs_human": True,
                 "confidence": 0.88,
-                "status": "blocked_expired_fact",
+                "status": "open",
+                "verification_status": "blocked_expired_fact",
                 "paragraph_ref": "p-1",
                 "verification_trace": [
                     {"gate": 1, "name": "Schema Validation", "result": "passed", "message": "Valid schema format", "evidence": "Schema v2"},
@@ -603,6 +625,7 @@ def generate_seed_data() -> Dict[str, Any]:
             "details": item["details"],
             "prev_hash": current_prev_hash,
             "hash": entry_hash,
+            "is_seed": True,
         })
         current_prev_hash = entry_hash
 

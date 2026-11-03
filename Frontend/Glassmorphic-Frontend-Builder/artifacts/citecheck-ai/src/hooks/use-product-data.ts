@@ -12,6 +12,7 @@ export const keys = {
 };
 const queryOptions = { staleTime: 20_000, refetchOnWindowFocus: true };
 export const useBrandKit = () => useQuery({ queryKey: keys.kit, queryFn: api.brandKit, ...queryOptions });
+export const useDashboardMetrics = () => useQuery({ queryKey: ['dashboard-metrics'], queryFn: api.dashboardMetrics, ...queryOptions });
 export const useDrafts = () => useQuery({ queryKey: keys.drafts, queryFn: api.drafts, ...queryOptions });
 export const useDraft = (id: string) => useQuery({ queryKey: keys.draft(id), queryFn: () => api.draft(id), enabled: !!id, ...queryOptions });
 export const useFindings = (id: string) => useQuery({ queryKey: keys.findings(id), queryFn: () => api.findings(id), enabled: !!id, ...queryOptions });
