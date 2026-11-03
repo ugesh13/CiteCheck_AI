@@ -4,6 +4,7 @@ import { Bell, Check, Clock, AlertTriangle, ShieldAlert, Radar, FileText, CheckC
 import { useNotifications } from '@/hooks/use-product-data';
 import { api } from '@/lib/api/endpoints';
 import { toast } from 'sonner';
+import { EmptyState } from '@/components/states';
 
 export function NotificationCenter() {
   const [isOpen, setIsOpen] = useState(false);
@@ -119,9 +120,12 @@ export function NotificationCenter() {
 
           <div className="mt-3 max-h-[380px] overflow-y-auto space-y-2 pr-1">
             {notifs.length === 0 ? (
-              <div className="py-8 text-center text-xs text-muted-foreground">
-                <Check size={24} className="mx-auto text-teal-500 mb-2" />
-                All caught up. No unread governance alerts.
+              <div className="py-4">
+                <EmptyState
+                  icon={Check}
+                  title="All caught up"
+                  description="No unread governance alerts. Real-time fact expiry and Gap Radar alerts will appear here."
+                />
               </div>
             ) : (
               notifs.map((item) => (

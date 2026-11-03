@@ -2,7 +2,7 @@
 
 > **Audited Evaluation Report**: Automatically generated from `backend/eval/dataset.jsonl` via the Five-Gate Evidence Verifier pipeline.
 
-- **Timestamp**: `2026-11-03T16:19:16.636976+00:00`
+- **Timestamp**: `2026-11-03T17:08:21.233313+00:00`
 - **Dataset Size**: `25 benchmark cases`
 - **Evaluation Mode**: `Deterministic Rules Engine + Five-Gate Verifier`
 
@@ -13,8 +13,8 @@
 | **Precision** | **100.0%** (21/21) | ≥ 85.0% | ✅ Exceeds Target |
 | **Recall** | **100.0%** (21/21) | ≥ 75.0% | ✅ Exceeds Target |
 | **F1 Score** | **100.0%** | ≥ 80.0% | ✅ High Adherence |
-| **Latency (p50)** | **0.23 ms** | < 100 ms | ✅ Real-time Pipeline |
-| **Latency (p95)** | **0.52 ms** | < 250 ms | ✅ High-throughput Serverless |
+| **Latency (p50)** | **0.18 ms** | < 100 ms | ✅ Real-time Pipeline |
+| **Latency (p95)** | **0.33 ms** | < 250 ms | ✅ High-throughput Serverless |
 
 ## Five-Gate Verifier Filtering Breakdown
 
@@ -42,30 +42,30 @@ Total Evaluated Claims: 27
 
 | Case ID | Scenario Name | Expected Violations | Verified Caught | Latency (ms) | Result |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `tc-01` | Clean benchmark baseline | `0` | `0` | `0.31` | ✅ Pass |
-| `tc-02` | Banned superlative 'most trusted' | `1` | `1` | `0.44` | ✅ Pass |
-| `tc-03` | Banned absolute '#1' | `1` | `1` | `0.2` | ✅ Pass |
-| `tc-04` | Banned absolute 'guaranteed' | `1` | `1` | `0.26` | ✅ Pass |
-| `tc-05` | Banned term 'risk-free' | `1` | `1` | `0.19` | ✅ Pass |
-| `tc-06` | Banned term 'zero fees' | `1` | `1` | `0.25` | ✅ Pass |
-| `tc-07` | Expired fact usage FACT-11 launch cashback | `1` | `1` | `0.35` | ✅ Pass |
-| `tc-08` | Altered metric - unsupported cashback percentage | `1` | `1` | `0.27` | ✅ Pass |
-| `tc-09` | Altered metric - unverified uptime | `1` | `1` | `0.23` | ✅ Pass |
-| `tc-10` | Tone pressure - act now | `1` | `1` | `0.23` | ✅ Pass |
-| `tc-11` | Tone pressure - limited time | `1` | `1` | `0.18` | ✅ Pass |
-| `tc-12` | Excessive sentence length (>40 words) | `1` | `1` | `0.33` | ✅ Pass |
+| `tc-01` | Clean benchmark baseline | `0` | `0` | `0.24` | ✅ Pass |
+| `tc-02` | Banned superlative 'most trusted' | `1` | `1` | `0.32` | ✅ Pass |
+| `tc-03` | Banned absolute '#1' | `1` | `1` | `0.18` | ✅ Pass |
+| `tc-04` | Banned absolute 'guaranteed' | `1` | `1` | `0.21` | ✅ Pass |
+| `tc-05` | Banned term 'risk-free' | `1` | `1` | `0.18` | ✅ Pass |
+| `tc-06` | Banned term 'zero fees' | `1` | `1` | `0.2` | ✅ Pass |
+| `tc-07` | Expired fact usage FACT-11 launch cashback | `1` | `1` | `0.2` | ✅ Pass |
+| `tc-08` | Altered metric - unsupported cashback percentage | `1` | `1` | `0.15` | ✅ Pass |
+| `tc-09` | Altered metric - unverified uptime | `1` | `1` | `0.16` | ✅ Pass |
+| `tc-10` | Tone pressure - act now | `1` | `1` | `0.16` | ✅ Pass |
+| `tc-11` | Tone pressure - limited time | `1` | `1` | `0.16` | ✅ Pass |
+| `tc-12` | Excessive sentence length (>40 words) | `1` | `1` | `0.31` | ✅ Pass |
 | `tc-13` | Clean support claim | `0` | `0` | `0.13` | ✅ Pass |
-| `tc-14` | Clean security statement | `0` | `0` | `0.13` | ✅ Pass |
-| `tc-15` | Multiple violations: superlative + banned term | `2` | `2` | `0.44` | ✅ Pass |
-| `tc-16` | Prompt injection attempt - System ignore | `2` | `2` | `0.55` | ✅ Pass |
-| `tc-17` | Smart curly quotes wrapping superlative | `1` | `1` | `0.24` | ✅ Pass |
-| `tc-18` | Banned absolute 'always' | `1` | `1` | `0.22` | ✅ Pass |
-| `tc-19` | Banned absolute 'never' | `1` | `1` | `0.28` | ✅ Pass |
-| `tc-20` | Clean multi-sentence paragraph | `0` | `0` | `0.37` | ✅ Pass |
-| `tc-21` | Tabular claim - unsupported fee | `1` | `1` | `0.2` | ✅ Pass |
-| `tc-22` | Tabular claim - clean security | `0` | `0` | `0.13` | ✅ Pass |
-| `tc-23` | First mention without full product name | `1` | `1` | `0.16` | ✅ Pass |
-| `tc-24` | Clean first mention | `0` | `0` | `0.13` | ✅ Pass |
+| `tc-14` | Clean security statement | `0` | `0` | `0.12` | ✅ Pass |
+| `tc-15` | Multiple violations: superlative + banned term | `2` | `2` | `0.28` | ✅ Pass |
+| `tc-16` | Prompt injection attempt - System ignore | `2` | `2` | `0.33` | ✅ Pass |
+| `tc-17` | Smart curly quotes wrapping superlative | `1` | `1` | `0.19` | ✅ Pass |
+| `tc-18` | Banned absolute 'always' | `1` | `1` | `0.18` | ✅ Pass |
+| `tc-19` | Banned absolute 'never' | `1` | `1` | `0.19` | ✅ Pass |
+| `tc-20` | Clean multi-sentence paragraph | `0` | `0` | `0.15` | ✅ Pass |
+| `tc-21` | Tabular claim - unsupported fee | `1` | `1` | `0.15` | ✅ Pass |
+| `tc-22` | Tabular claim - clean security | `0` | `0` | `0.12` | ✅ Pass |
+| `tc-23` | First mention without full product name | `1` | `1` | `0.14` | ✅ Pass |
+| `tc-24` | Clean first mention | `0` | `0` | `0.11` | ✅ Pass |
 | `tc-25` | Altered metric - unsupported 45-day window | `1` | `1` | `0.15` | ✅ Pass |
 
 ## Reproduction Command

@@ -28,6 +28,11 @@ type SessionState = {
   selectedFinding: string | null;
   theme: 'dark' | 'light';
   reducedMotion: boolean;
+  sessionExpired: boolean;
+  setSessionExpired: (expired: boolean) => void;
+  saveUnsavedWork: (draftId: string, text: string, title?: string) => void;
+  getSavedWork: (draftId: string) => { text: string; title?: string } | null;
+  clearSavedWork: (draftId: string) => void;
   setSession: (token: string, user: User) => void;
   logout: () => void | Promise<void>;
   setSelectedFinding: (id: string | null) => void;
@@ -44,6 +49,31 @@ export const useSession = create<SessionState>((set, get) => ({
   selectedFinding: null,
   theme: 'light',
   reducedMotion: false,
+  sessionExpired: false,
+  setSessionExpired: (sessionExpired) => set({ sessionExpired }),
+  saveUnsavedWork: (draftId, textVal, title) => {
+    try {
+      const key = `citecheck_saved_work_${draftId}`;
+      localStorage.setItem(key, JSON.stringify({ text: textVal, title, timestamp: Date.now() }));
+    } catch {
+      // ignore
+    }
+  },
+  getSavedWork: (draftId) => {
+    try {
+      const raw = localStorage.getItem(`citecheck_saved_work_${draftId}`);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  },
+  clearSavedWork: (draftId) => {
+    try {
+      localStorage.removeItem(`citecheck_saved_work_${draftId}`);
+    } catch {
+      // ignore
+    }
+  },
   setSession: (token, user) => {
     try {
       localStorage.setItem(TOKEN_KEY, token);

@@ -11,7 +11,7 @@ import {
   GitCompareArrows, History, Home, Layers3, LockKeyhole, LogIn, MoreHorizontal, PanelRight,
   Plus, Radar, RefreshCw, Search, Send, Settings2, ShieldAlert, ShieldCheck, Sparkles,
   Sun, Moon, Upload, UserCheck, X, LogOut,
-} from 'lucide-react';
+  CheckCircle2} from 'lucide-react';
 import { api, API_BASE_URL } from '@/lib/api/endpoints';
 import { sampleText } from '@/lib/api/fixtures';
 import type { Draft, Finding, Role } from '@/lib/api/types';
@@ -25,6 +25,18 @@ import { FindingCard } from '@/components/finding-card';
 import { VerifierFunnel } from '@/components/verifier-funnel';
 import { VerifierLabPage } from '@/pages/verifier-lab';
 import { BrandKitFacts } from '@/components/brand-kit-facts';
+import {
+  EmptyState,
+  LoadingState,
+  ErrorState,
+  OfflineBanner,
+  SlowNotice,
+  NoResults,
+  PermissionDenied,
+  SessionExpiredDialog,
+  FieldError,
+  SuccessPanel,
+} from '@/components/states';
 import { NotificationCenter } from '@/components/notification-center';
 import { BrandKitPage } from '@/pages/brand-kit';
 import { GuidedTour } from '@/components/guided-tour';
@@ -316,6 +328,8 @@ function AppShell({ children }: { children: ReactNode }) {
   const [search, setSearch] = useState('');
   const [showDock, setShowDock] = useState(true);
   const lastScrollY = useRef(0);
+  const sessionExpired = useSession((s) => s.sessionExpired);
+  const setSessionExpired = useSession((s) => s.setSessionExpired);
 
   useEffect(() => {
     const onScroll = () => {
@@ -344,6 +358,15 @@ function AppShell({ children }: { children: ReactNode }) {
   const visibleNav = nav.filter((item: any) => !item.roles || item.roles.includes(user?.role || 'creator'));
   const go = (href: string) => { setPath(href); setPalette(false); setMore(false); };
   return <div className="app-atmosphere min-h-[100dvh]">
+    <OfflineBanner onReconnect={() => window.location.reload()} />
+    <SessionExpiredDialog
+      open={sessionExpired}
+      onReLogin={() => {
+        setSessionExpired(false);
+        logout();
+        setPath('/');
+      }}
+    />
     <div className="aurora-orb orb-teal" /><div className="aurora-orb orb-violet" /><div className="aurora-orb orb-amber" />
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/65 backdrop-blur-2xl">
       <div className="mx-auto flex h-[68px] max-w-[1440px] items-center justify-between px-4 sm:px-7">
@@ -777,15 +800,24 @@ function LoginPage() {
   const {data, isLoading, isError, error, refetch} = useDrafts();
   const { data: brandKitData } = useBrandKit();
   const { data: metrics } = useDashboardMetrics();
-  const draftsList = Array.isArray(data) ? data : [];
-  const openFindingCount = metrics ? metrics.open_findings : draftsList.reduce((sum, item) => sum + (item.open_findings_count ?? (item.findings_count || 0)), 0);
-  const statusCount = (status: string) => metrics?.draft_pulse ? (metrics.draft_pulse[status] ?? 0) : draftsList.filter((d) => d.status.toLowerCase() === status.toLowerCase()).length;
-  const reviewQueueCount = metrics ? metrics.review_queue_size : draftsList.filter((d) => d.status.toLowerCase() === 'in review').length;
+  const draftsList = (Array.isArray(data) ? data : []).filter((d): d is any => Boolean(d && typeof d === 'object'));
+  const openFindingCount = metrics?.open_findings ?? draftsList.reduce((sum, item) => sum + (Number(item?.open_findings_count) || Number(item?.findings_count) || 0), 0);
+  const statusCount = (status: string) => {
+    if (metrics?.draft_pulse && typeof metrics.draft_pulse[status] === 'number') {
+      return metrics.draft_pulse[status];
+    }
+    return draftsList.filter((d) => typeof d?.status === 'string' && d.status.toLowerCase() === status.toLowerCase()).length;
+  };
+  const reviewQueueCount = metrics?.review_queue_size ?? draftsList.filter((d) => typeof d?.status === 'string' && d.status.toLowerCase() === 'in review').length;
   const user = useSession((s) => s.user);
   const [docxOpen, setDocxOpen] = useState(false);
   const [, setPath] = useLocation();
-  const factsList = Array.isArray(brandKitData?.facts) ? brandKitData.facts : [];
-  const expiredFacts = factsList.filter((f: any) => f && getFactExpiry(f.expires_on || f.review_date).status === 'expired');
+  const factsList = (Array.isArray(brandKitData?.facts) ? brandKitData.facts : []).filter(Boolean);
+  const expiredFacts = factsList.filter((f: any) => {
+    if (!f) return false;
+    const exp = getFactExpiry(f.expires_on || f.review_date);
+    return exp && exp.status === 'expired';
+  });
 
       return <div className="page-enter">
         <DocxUploadModal open={docxOpen} onClose={() => setDocxOpen(false)} onCreated={(id) => setPath(`/drafts/${id}`)} />
@@ -799,7 +831,12 @@ function LoginPage() {
               <div>
                 <b className="text-xs text-foreground">Fact Expiry Radar · {expiredFacts.length} {expiredFacts.length === 1 ? 'claim requires' : 'claims require'} human confirmation</b>
                 <p className="mt-0.5 text-[10px] text-muted-foreground">
-                  {expiredFacts.map((f: any) => `${f?.id || f?.code || f?.fact_code || 'FACT'} (${String(f?.text || f?.fact_text || f?.claim || f?.statement || '').slice(0, 32)}...)`).join(' and ')} review {expiredFacts.length === 1 ? 'date has' : 'dates have'} passed. Evidence gates require human approval for expired claims.
+                  {expiredFacts.map((f: any) => {
+                    const label = f?.id || f?.code || f?.fact_code || 'FACT';
+                    const rawText = String(f?.text || f?.fact_text || f?.claim || f?.statement || '');
+                    const snippet = rawText ? ` (${rawText.slice(0, 32)}...)` : '';
+                    return `${label}${snippet}`;
+                  }).join(' and ')} review {expiredFacts.length === 1 ? 'date has' : 'dates have'} passed. Evidence gates require human approval for expired claims.
                 </p>
               </div>
             </div>
@@ -807,11 +844,11 @@ function LoginPage() {
           </Glass>
         )}
         <PageHead eyebrow={`${roleName(user?.role)} workspace`} title="Good work starts with a source." sub="A live view of drafts, decisions, and what's waiting for a human." action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => setDocxOpen(true)} className="px-4 py-3 text-xs"><Upload size={14} />Upload document (.docx / .md)</Button><Link href="/drafts/new" className="inline-flex items-center gap-2 rounded-xl bg-teal-300 px-4 py-3 text-sm font-extrabold text-slate-950 transition hover:-translate-y-1"><Plus size={16} />New draft</Link></div>} />
-        {isLoading ? <LoadingCards /> : isError ? <ApiFailure error={error} retry={() => refetch()} /> : <div className="grid gap-4 md:grid-cols-4">
+        {isLoading ? <LoadingState variant="cards" /> : isError ? <ErrorState error={error} retry={() => refetch()} /> : <div className="grid gap-4 md:grid-cols-4">
           <Glass className="glass-hover col-span-2 p-5 sm:p-6"><div className="flex items-center justify-between"><Eyebrow>Draft pulse</Eyebrow><Link href="/drafts" className="text-xs font-bold text-teal-600 dark:text-teal-200">All drafts <ArrowUpRight size={14} className="inline" /></Link></div><div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">{[['Draft', statusCount('Draft'), 'text-muted-foreground'], ['In review', statusCount('In review'), 'text-violet-500'], ['Changes requested', statusCount('Changes requested'), 'text-amber-600'], ['Approved', statusCount('Approved'), 'text-teal-600']].map(([label, value, color]) => <div key={String(label)} className="rounded-2xl border border-border/70 bg-background/35 p-3"><div className={`display text-3xl font-bold ${color}`}>{isLoading ? '—' : value}</div><div className="mt-1 text-[10px] leading-4 text-muted-foreground">{label}</div></div>)}</div><div className="mt-5 flex items-center gap-2 text-[11px] text-muted-foreground"><span className="h-1.5 w-1.5 rounded-full bg-teal-300" />Live from your workspace.</div></Glass>
           <Glass className="glass-hover p-5 sm:p-6"><div className="flex items-center justify-between"><Eyebrow>Open findings</Eyebrow><Flag size={16} className="text-amber-500" /></div><div className="display mt-4 text-4xl font-bold">{openFindingCount}</div><p className="mt-2 text-xs leading-5 text-muted-foreground">Findings reported across loaded drafts. Check each excerpt before you decide.</p><Link href="/drafts" className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-teal-600 dark:text-teal-200">Review drafts <ArrowRight size={13} /></Link></Glass>
           <Glass className="glass-hover p-5 sm:p-6"><div className="flex items-center justify-between"><Eyebrow>Human review</Eyebrow><Sparkles size={16} className="text-violet-500" /></div><div className="display mt-4 text-4xl font-bold">{reviewQueueCount}</div><p className="mt-2 text-xs leading-5 text-muted-foreground">Submitted items waiting for a reviewer decision.</p><Link href="/review" className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-violet-600 dark:text-violet-200">Open queue <ArrowRight size={13} /></Link></Glass>
-          <Glass className="col-span-2 p-5 sm:p-6"><div className="flex items-center justify-between"><div><Eyebrow>Recent work</Eyebrow><h2 className="display mt-1 text-xl font-bold">Drafts in motion</h2></div><Activity size={17} className="text-teal-500" /></div><div className="mt-4 divide-y divide-border/60">{draftsList.slice(0, 4).map((draft) => <Link key={draft.id} href={`/drafts/${draft.id}`} className="flex items-center gap-3 py-3 hover:text-teal-600 dark:hover:text-teal-200" data-testid={`row-recent-draft-${draft.id}`}><span className="grid h-9 w-9 place-items-center rounded-xl bg-violet-300/10 text-violet-600 dark:text-violet-200"><FileText size={16} /></span><span className="min-w-0 flex-1"><b className="block truncate text-sm">{draft.title}</b><span className="text-[10px] text-muted-foreground">v{draft.version} · Updated {time(draft.updated_at)}</span></span><Tag tone={draft.status === 'Approved' ? 'teal' : draft.status === 'In review' ? 'violet' : draft.status === 'Changes requested' ? 'amber' : 'neutral'}>{draft.status}</Tag>{draft.is_seed && <Tag tone="neutral">demo seed</Tag>}<ArrowRight size={14} className="hidden text-muted-foreground sm:block" /></Link>)}</div>{draftsList.length === 0 && <p className="mt-5 text-sm text-muted-foreground">No drafts yet. Start with a claim you want to verify.</p>}</Glass>
+          <Glass className="col-span-2 p-5 sm:p-6"><div className="flex items-center justify-between"><div><Eyebrow>Recent work</Eyebrow><h2 className="display mt-1 text-xl font-bold">Drafts in motion</h2></div><Activity size={17} className="text-teal-500" /></div><div className="mt-4 divide-y divide-border/60">{draftsList.filter((d) => d && d.id).slice(0, 4).map((draft) => <Link key={draft.id} href={`/drafts/${draft.id}`} className="flex items-center gap-3 py-3 hover:text-teal-600 dark:hover:text-teal-200" data-testid={`row-recent-draft-${draft.id}`}><span className="grid h-9 w-9 place-items-center rounded-xl bg-violet-300/10 text-violet-600 dark:text-violet-200"><FileText size={16} /></span><span className="min-w-0 flex-1"><b className="block truncate text-sm">{draft.title}</b><span className="text-[10px] text-muted-foreground">v{draft.version} · Updated {time(draft.updated_at)}</span></span><Tag tone={draft.status === 'Approved' ? 'teal' : draft.status === 'In review' ? 'violet' : draft.status === 'Changes requested' ? 'amber' : 'neutral'}>{draft.status}</Tag>{draft.is_seed && <Tag tone="neutral">demo seed</Tag>}<ArrowRight size={14} className="hidden text-muted-foreground sm:block" /></Link>)}</div>{draftsList.length === 0 && <p className="mt-5 text-sm text-muted-foreground">No drafts yet. Start with a claim you want to verify.</p>}</Glass>
           <Glass className="col-span-2 p-5 sm:p-6"><div className="flex items-center justify-between"><div><Eyebrow>Quick actions</Eyebrow><h2 className="display mt-1 text-xl font-bold">Pick up where you are.</h2></div><ArrowUpRight size={17} className="text-muted-foreground" /></div><div className="mt-5 grid gap-2 sm:grid-cols-2">{[[FilePlus2, 'Create a draft', '/drafts/new'], [Layers3, 'Check approved facts', '/brand-kit'], [Radar, 'Explore Gap Radar', '/gap-radar'], [History, 'Inspect audit trail', '/audit']].map(([Icon, label, href]) => <Link key={String(href)} href={String(href)} className="flex items-center gap-3 rounded-2xl border border-border bg-background/35 p-4 text-sm font-semibold transition hover:-translate-y-1 hover:bg-white/5"><span className="grid h-9 w-9 place-items-center rounded-xl bg-teal-300/10 text-teal-600 dark:text-teal-200"><Icon size={16} /></span>{String(label)}<ArrowRight size={14} className="ml-auto text-muted-foreground" /></Link>)}</div><p className="mt-4 text-[10px] text-muted-foreground">Numbers shown here are returned by the API; no performance statistics are estimated.</p></Glass>
         </div>}
         <Glass className="mt-4 flex items-center gap-4 p-4 sm:p-5"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-300/15 text-amber-600 dark:text-amber-200"><ShieldCheck size={18} /></span><div><b className="text-sm">AI suggests, humans decide.</b><p className="mt-1 text-xs text-muted-foreground">Review every source, especially when numbers, names, or dates are involved.</p></div></Glass>
@@ -832,7 +869,38 @@ function LoginPage() {
           <DocxUploadModal open={docxOpen} onClose={() => setDocxOpen(false)} onCreated={(id) => setPath(`/drafts/${id}`)} />
           <PageHead eyebrow="Content workspace" title="Drafts" sub="Search the work in progress. Every version can be traced back to a decision." action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => setDocxOpen(true)} className="px-4 py-3 text-xs"><Upload size={14} />Upload document (.docx / .md)</Button><Link href="/drafts/new" className="inline-flex items-center gap-2 rounded-xl bg-teal-300 px-4 py-3 text-sm font-extrabold text-slate-950 transition hover:-translate-y-1"><Plus size={15} />New draft</Link></div>} />
           <Glass className="mb-4 flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between"><label className="flex h-10 min-w-0 items-center gap-2 rounded-xl border border-border bg-background/45 px-3 sm:w-80"><Search size={15} className="text-muted-foreground" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search drafts…" className="min-w-0 flex-1 bg-transparent text-xs outline-none" data-testid="input-draft-search" /></label><div className="flex gap-1 overflow-x-auto">{['All', 'Draft', 'In review', 'Changes requested', 'Approved'].map((s) => <button key={s} onClick={() => setFilter(s)} className={`whitespace-nowrap rounded-lg px-3 py-2 text-[10px] font-bold ${filter === s ? 'bg-teal-300 text-slate-950' : 'text-muted-foreground hover:bg-white/5'}`}>{s}</button>)}</div></Glass>
-          {isLoading ? <LoadingCards /> : isError ? <ApiFailure error={error} retry={() => refetch()} /> : draftsList.length ? <div className="grid gap-3">{draftsList.map((draft) => <DraftRow key={draft.id} draft={draft} />)}</div> : <Glass className="p-9 text-center"><FileText className="mx-auto text-violet-500" size={24} /><h2 className="display mt-3 text-xl font-bold">{search ? 'No matching drafts' : filter === 'Approved' ? 'No approved drafts yet' : 'A blank page, with a source.'}</h2><p className="mt-2 text-sm text-muted-foreground">{filter === 'Approved' ? 'Once a reviewer approves a submitted draft in the Review Queue, the locked version appears here.' : 'Start with a title and the words you want checked.'}</p><Link href="/drafts/new" className="mt-5 inline-flex rounded-xl bg-teal-300 px-4 py-2.5 text-sm font-bold text-slate-950">Create a draft</Link></Glass>}
+          {isLoading ? (
+            <LoadingState variant="table" />
+          ) : isError ? (
+            <ErrorState error={error} retry={() => refetch()} />
+          ) : draftsList.length ? (
+            <div className="grid gap-3">{draftsList.map((draft) => <DraftRow key={draft.id} draft={draft} />)}</div>
+          ) : search ? (
+            <NoResults
+              query={search}
+              onClear={() => setSearch('')}
+              suggestions={(Array.isArray(data) ? data : [])
+                .map((d) => d.title)
+                .filter((t) => t.toLowerCase().includes(search.slice(0, 2).toLowerCase()))
+                .slice(0, 3)}
+              onSelectSuggestion={(s) => setSearch(s)}
+              onCreateNamed={(name) => setPath(`/drafts/new?title=${encodeURIComponent(name)}`)}
+            />
+          ) : (
+            <EmptyState
+              icon={FilePlus2}
+              title={filter === 'Approved' ? 'No approved drafts yet' : 'No drafts in workspace'}
+              description={
+                filter === 'Approved'
+                  ? 'Once a reviewer approves a submitted draft in the Review Queue, the locked version appears here.'
+                  : 'Start by creating a new draft or uploading a Word document (.docx) to verify against your brand guidelines.'
+              }
+              actionText="Create draft"
+              actionHref="/drafts/new"
+              secondaryText="Upload document (.docx)"
+              onSecondaryAction={() => setDocxOpen(true)}
+            />
+          )}
         </div>;
 }
         function DraftRow({draft}: {draft: Draft }) {
@@ -925,6 +993,8 @@ function LoginPage() {
           const createVersion = useCreateVersion(id);
           const client = useQueryClient();
   const user = useSession((s) => s.user);
+  const demoRole = useSession((s) => s.demoRole);
+  const [, setPath] = useLocation();
           const canEdit = user?.role === 'creator';
           const findingList = Array.isArray(findingsQuery.data) ? findingsQuery.data : [];
   const activeFindings = findingList.filter((f) => f.status === 'open');
@@ -942,13 +1012,22 @@ function LoginPage() {
           const submitComment = commentForm.handleSubmit(async ({text: comment }) => { try {await addComment.mutateAsync({ text: comment }); commentForm.reset(); toast.success('Comment added'); } catch (e) {toast.error(e instanceof Error ? e.message : 'Comment failed'); } });
   const saveVersion = async () => { try {await createVersion.mutateAsync({ text }); toast.success('Version submitted for review'); } catch (e) {toast.error(e instanceof Error ? e.message : 'Could not submit version'); } };
           const current = draftQuery.data;
-          if (draftQuery.isLoading) return <LoadingCards />;
-          if (draftQuery.isError) return <ApiFailure error={draftQuery.error} retry={() => draftQuery.refetch()} />;
-          if (!current) return <Glass className="p-8">Draft not found. <Link href="/drafts" className="text-teal-600">Back to drafts</Link></Glass>;
+          if (draftQuery.isLoading) return <LoadingState variant="editor" />;
+          if (draftQuery.isError) return <ErrorState error={draftQuery.error} retry={() => draftQuery.refetch()} />;
+          if (!current) return <EmptyState icon={FileText} title="Draft not found" description="This draft may have been deleted or archived. Return to drafts to view all items." actionText="Back to drafts" actionHref="/drafts" />;
   const filtered = findingList.filter((f) => findingFilter === 'All' || findingFilter === 'Rules' && f.source === 'rules' || findingFilter === 'AI-assisted' && f.source === 'ai' || findingFilter === 'Needs human review' && (f.confidence < .8 || f.fix_needs_human) || findingFilter === 'Resolved' && f.status !== 'open');
           return <div className="page-enter"><button onClick={() => history.back()} className="mb-4 inline-flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground"><ArrowLeft size={14} />Back</button><PageHead eyebrow="Draft review room" title={current.title} sub={`DRAFT v${current.version} · ${current.status}`} action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => { runReview.mutate(); toast('Running five-gate review…'); }} disabled={runReview.isPending} data-testid="button-run-review"><RefreshCw size={14} className={runReview.isPending ? 'animate-spin' : ''} />{runReview.isPending ? 'Reviewing…' : 'Run review'}</Button>{user?.role === 'reviewer' && current.status.toLowerCase() === 'in review' && (<Button disabled={draftHasExpiredFact} title={draftHasExpiredFact ? `Blocked by Gate 5: ${draftExpiredFinding?.source_ref_id} is expired. Renew fact to unblock publication.` : undefined} onClick={async () => { try { await api.approve(id); await client.invalidateQueries({ queryKey: keys.draft(id) }); await client.invalidateQueries({ queryKey: keys.drafts }); await client.invalidateQueries({ queryKey: keys.audit }); toast.success(`Draft "${current.title}" approved and locked`); } catch (e: any) { toast.error(e?.message || 'Approval failed'); } }} className="bg-teal-300 font-bold text-slate-950 hover:bg-teal-200"><LockKeyhole size={14} />Approve & lock version</Button>)}<Button onClick={saveVersion} data-testid="button-submit-review"><Send size={14} />Submit for review</Button></div>} />
             <div className="mb-3 flex gap-1 rounded-xl border border-border bg-card/45 p-1 lg:hidden">{(['editor', 'findings'] as const).map((tab) => <button key={tab} onClick={() => setMobileTab(tab)} className={`flex-1 rounded-lg py-2 text-xs font-bold capitalize ${mobileTab === tab ? 'bg-teal-300 text-slate-950' : 'text-muted-foreground'}`}>{tab === 'findings' ? `Findings · ${findingList.length}` : tab}</button>)}</div>
-            {!canEdit && <Glass className="mb-4 p-4"><div className="flex items-center gap-2 text-xs font-bold"><LockKeyhole size={14} />Read-only draft view</div><p className="mt-1 text-[10px] text-muted-foreground">Creator-only edits and finding decisions are disabled for this role.</p></Glass>}
+            {!canEdit && (
+              <div className="mb-4">
+                <PermissionDenied
+                  requiredRole="creator"
+                  actionName="edit draft text or make finding decisions"
+                  onSwitchRole={() => demoRole('creator')}
+                  onBack={() => setPath('/drafts')}
+                />
+              </div>
+            )}
             <div className="grid gap-4 lg:grid-cols-[1.02fr_.98fr]">
               <div className={`${mobileTab === 'findings' ? 'hidden lg:block' : ''} grid min-w-0 gap-4 content-start`}>
                 <Glass className="overflow-hidden"><div className="flex items-center justify-between border-b border-border px-4 py-3"><div className="flex items-center gap-2"><FileText size={15} className="text-violet-500" /><span className="mono text-[10px] uppercase tracking-wider">Draft text · {(text.trim().split(/\\s+/).filter(Boolean).length).toLocaleString()} words ({text.length.toLocaleString()} chars)</span></div><Tag tone="violet">v{current.version}</Tag></div><ErrorBoundary FallbackComponent={ErrorFallback} resetKey={id}><div className="relative"><div className="pointer-events-none absolute inset-0 soft-grid opacity-30" /><div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-amber-300/[.04] to-transparent" /><HighlightedEditor value={text} onChange={setText} readOnly={!canEdit} /></div></ErrorBoundary></Glass>
@@ -957,7 +1036,26 @@ function LoginPage() {
               </div>
               <div className={`${mobileTab === 'editor' ? 'hidden lg:block' : ''} grid min-w-0 content-start gap-4`}>
                 <Glass className="p-4"><div className="flex items-center justify-between"><div><Eyebrow>Findings · {findingList.length}</Eyebrow><h3 className="display mt-1 font-bold">Evidence to review</h3></div><PanelRight size={17} className="text-muted-foreground" /></div><div className="mt-3 flex gap-1 overflow-x-auto pb-1">{['All', 'Rules', 'AI-assisted', 'Needs human review', 'Resolved'].map((f) => <button key={f} onClick={() => setFindingFilter(f)} className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[9px] font-bold ${findingFilter === f ? 'bg-violet-300/20 text-violet-700 dark:text-violet-200' : 'border border-border text-muted-foreground'}`}>{f}</button>)}</div></Glass>
-                {findingsQuery.isLoading ? <LoadingCards /> : findingsQuery.isError ? <ApiFailure error={findingsQuery.error} retry={() => findingsQuery.refetch()} /> : filtered.length ? <div className="grid gap-3">{filtered.map((finding, index) => <FindingCard key={finding.id} finding={finding} draftId={id} index={index} canResolve={canEdit} />)}</div> : <Glass className="p-7 text-center"><BadgeCheck className="mx-auto text-teal-500" /><h3 className="display mt-2 font-bold">Nothing in this view</h3><p className="mt-1 text-xs text-muted-foreground">Try a different filter or run a review.</p></Glass>}
+                {findingsQuery.isLoading ? (
+                  <LoadingState variant="cards" count={2} />
+                ) : findingsQuery.isError ? (
+                  <ErrorState error={findingsQuery.error} retry={() => findingsQuery.refetch()} />
+                ) : filtered.length ? (
+                  <div className="grid gap-3">{filtered.map((finding, index) => <FindingCard key={finding.id} finding={finding} draftId={id} index={index} canResolve={canEdit} />)}</div>
+                ) : (
+                  <EmptyState
+                    icon={CheckCircle2}
+                    title={findingFilter === 'All' ? 'Zero violations detected' : `No findings in "${findingFilter}"`}
+                    description={
+                      findingFilter === 'All'
+                        ? 'All five gates evaluated clean. No guideline violations, expired facts, or forbidden terms were found in this draft.'
+                        : 'Try selecting "All" or run a new five-gate verification.'
+                    }
+                    actionText={findingFilter !== 'All' ? 'View all findings' : undefined}
+                    onAction={findingFilter !== 'All' ? () => setFindingFilter('All') : undefined}
+                  />
+                )}
+                <SlowNotice loading={runReview.isPending} stage="Executing Five-Gate Verifier & checking Brand Kit ground truth…" />
                 <VerifierFunnel summary={runReview.data?.summary} dropped={Array.isArray(runReview.data?.dropped) ? runReview.data.dropped : []} findingsCount={findingList.length} />
                 <Glass className="flex flex-wrap items-center justify-between gap-3 p-4 border-teal-300/20 bg-teal-300/[.04]">
                   <div className="flex items-center gap-3">
@@ -987,6 +1085,7 @@ function LoginPage() {
   const { data, isLoading, isError, error, refetch } = useDrafts();
   const user = useSession((s) => s.user);
   const demoRole = useSession((s) => s.demoRole);
+  const [, setPath] = useLocation();
   const draftsList = Array.isArray(data) ? data : [];
   const [selected, setSelected] = useState<string | null>(null);
   const [note, setNote] = useState('');
@@ -1075,29 +1174,20 @@ function LoginPage() {
       />
 
       {user?.role !== 'reviewer' && (
-        <Glass className="mb-5 border-amber-300/25 bg-amber-300/[.07] p-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-400/20 text-amber-600 dark:text-amber-200">
-              <LockKeyhole size={16} />
-            </span>
-            <div>
-              <b className="text-xs text-foreground">Reviewer desk is locked for {roleName(user?.role)}</b>
-              <p className="text-[11px] text-muted-foreground">Approval actions and change requests require a Reviewer session.</p>
-            </div>
-          </div>
-          <Button
-            onClick={async () => { await demoRole('reviewer'); toast.success('Switched to Nisha Rao (Reviewer)'); }}
-            className="px-3.5 py-2 text-xs font-bold"
-          >
-            <UserCheck size={14} /> Switch to Nisha (Reviewer)
-          </Button>
-        </Glass>
+        <div className="mb-5">
+          <PermissionDenied
+            requiredRole="reviewer"
+            actionName="review submitted drafts, approve versions, or request changes"
+            onSwitchRole={() => demoRole('reviewer')}
+            onBack={() => setPath('/dashboard')}
+          />
+        </div>
       )}
 
       {isLoading ? (
-        <LoadingCards />
+        <LoadingState variant="review" />
       ) : isError ? (
-        <ApiFailure error={error} retry={() => refetch()} />
+        <ErrorState error={error} retry={() => refetch()} />
       ) : pending.length ? (
         <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
           <Glass className="p-4">
@@ -1247,35 +1337,31 @@ function LoginPage() {
                 )}
               </Glass>
             </div>
+          ) : justApproved ? (
+            <SuccessPanel
+              title={`Draft "${justApproved.title}" Approved & Locked`}
+              detail={`Version ${justApproved.version} has been permanently sealed into the tamper-evident SHA-256 audit log.`}
+              actionText="Review all drafts"
+              onAction={() => setPath('/drafts')}
+              secondaryText="Inspect Audit Trail"
+              onSecondaryAction={() => setPath('/audit')}
+            />
           ) : (
-            <Glass className="p-9 text-center border-teal-300/30 bg-teal-300/[.05]">
-              <BadgeCheck className="mx-auto h-12 w-12 text-teal-500" />
-              <h2 className="display mt-3 text-xl font-bold">Release locked and approved!</h2>
-              {justApproved ? (
-                <p className="mt-1 text-sm text-foreground">
-                  <b>{justApproved.title} (v{justApproved.version})</b> has been signed off and recorded in the permanent audit trail.
-                </p>
-              ) : (
-                <p className="mt-1 text-sm text-foreground">All submitted drafts have been verified and locked.</p>
-              )}
-              <p className="mt-2 text-xs text-muted-foreground">Reviewer sign-off complete. All open findings verified against approved Brand Kit facts.</p>
-              <div className="mt-5 flex justify-center gap-3">
-                <Link href="/audit" className="inline-flex items-center gap-2 rounded-xl bg-teal-300 px-4 py-2.5 text-xs font-bold text-slate-950 hover:bg-teal-200">
-                  <History size={14} /> View in Audit log
-                </Link>
-                <Link href="/drafts" className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-xs font-bold hover:bg-white/5">
-                  <FileText size={14} /> View all drafts
-                </Link>
-              </div>
-            </Glass>
+            <EmptyState
+              icon={CheckCircle2}
+              title="Select a draft to review"
+              description="Choose a submitted draft from the queue list on the left to inspect its diff and verify findings."
+            />
           )}
         </div>
       ) : (
-        <Glass className="p-9 text-center">
-          <BadgeCheck className="mx-auto text-teal-500" />
-          <h2 className="display mt-3 text-xl font-bold">Queue is clear.</h2>
-          <p className="mt-2 text-sm text-muted-foreground">No drafts currently in review. Submit a draft from the drafts workspace.</p>
-        </Glass>
+        <EmptyState
+          icon={CheckCircle2}
+          title="Review queue is clear"
+          description="No drafts currently waiting for reviewer decision. New submissions from creators will appear here automatically."
+          actionText="View all drafts"
+          actionHref="/drafts"
+        />
       )}
       <Glass className="mt-4 flex items-center gap-3 p-4">
         <LockKeyhole className="text-teal-500" size={17} />

@@ -14,6 +14,12 @@ import {
 import { useAuditLog } from '@/hooks/use-product-data';
 import { api } from '@/lib/api/endpoints';
 import { Glass, Eyebrow, Tag, Button, PageHead, LoadingCards, ApiFailure, roleName, time } from '@/components/ui-atoms';
+import {
+  EmptyState,
+  LoadingState,
+  ErrorState,
+  NoResults,
+} from '@/components/states';
 import { toast } from 'sonner';
 
 interface VerificationResult {
@@ -223,9 +229,9 @@ export function AuditPage() {
 
       {/* Audit Log Table */}
       {isLoading ? (
-        <LoadingCards />
+        <LoadingState variant="table" />
       ) : isError ? (
-        <ApiFailure error={error} retry={() => refetch()} />
+        <ErrorState error={error} retry={() => refetch()} />
       ) : (
         <>
           <div className="hidden overflow-hidden rounded-3xl border border-border bg-card/40 md:block">
@@ -287,9 +293,22 @@ export function AuditPage() {
           </div>
 
           {!rows.length && (
-            <Glass className="mt-3 p-8 text-center text-sm text-muted-foreground">
-              No audit entries match that filter.
-            </Glass>
+            search || roleFilter !== 'All' || actionFilter !== 'All' ? (
+              <NoResults
+                query={search || `${roleFilter !== 'All' ? `Role: ${roleFilter}` : ''} ${actionFilter !== 'All' ? `Action: ${actionFilter}` : ''}`.trim()}
+                onClear={() => {
+                  setSearch('');
+                  setRoleFilter('All');
+                  setActionFilter('All');
+                }}
+              />
+            ) : (
+              <EmptyState
+                icon={History}
+                title="No audit entries recorded"
+                description="Every human decision, fact renewal, and review action will create a permanent SHA-256 block here."
+              />
+            )
           )}
         </>
       )}

@@ -31,7 +31,27 @@ export function normalizeError(payload: unknown, status?: number): ApiError {
   return err;
 }
 
+function isTokenExpired(token: string | null): boolean {
+  if (!token || token.startsWith('preview-token')) return false;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    const payload = JSON.parse(atob(parts[1]));
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
 async function request<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
+  const token = useSession.getState().token;
+  if (isTokenExpired(token)) {
+    useSession.getState().setSessionExpired(true);
+  }
+
   const response = await fetch(`${API_BASE}${path}`, {
     method,
     headers: headers(),
@@ -39,7 +59,7 @@ async function request<T>(path: string, method = 'GET', body?: unknown): Promise
   });
 
   if (response.status === 401) {
-    useSession.getState().logout();
+    useSession.getState().setSessionExpired(true);
   }
 
   if (response.ok) {

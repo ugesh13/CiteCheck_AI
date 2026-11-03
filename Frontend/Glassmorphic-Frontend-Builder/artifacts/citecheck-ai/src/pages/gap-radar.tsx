@@ -20,6 +20,12 @@ import {
 import { useSession } from '@/store/session';
 import { useGapRadar, useGapRadarAction } from '@/hooks/use-product-data';
 import { Glass, Eyebrow, Tag, Button, PageHead, LoadingCards, ApiFailure, roleName, time } from '@/components/ui-atoms';
+import {
+  EmptyState,
+  LoadingState,
+  ErrorState,
+  PermissionDenied,
+} from '@/components/states';
 import { toast } from 'sonner';
 
 interface DismissalEvent {
@@ -91,28 +97,16 @@ export function GapRadarPage() {
 
       {/* Role Notice */}
       {user?.role !== 'brand_manager' && (
-        <Glass className="mb-4 border-teal-300/25 bg-teal-300/[.06] p-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-teal-400/20 text-teal-600 dark:text-teal-200">
-              <Radar size={16} />
-            </span>
-            <div>
-              <b className="text-xs text-foreground">Gap Radar · Preview Mode ({roleName(user?.role)})</b>
-              <p className="text-[11px] text-muted-foreground">
-                You have read-only access to policy diagnostic metrics. Switch to Brand Manager to edit rules and resolve policy friction.
-              </p>
-            </div>
-          </div>
-          <Button
-            onClick={() => {
+        <div className="mb-4">
+          <PermissionDenied
+            requiredRole="brand_manager"
+            actionName="remediate guideline friction and add contextual exemptions"
+            onSwitchRole={() => {
               demoRole('brand_manager');
-              toast.success('Switched to Arjun Mehta (Brand Manager)');
+              toast.success('Switched to Brand Manager role');
             }}
-            className="px-3.5 py-1.5 text-xs font-bold"
-          >
-            <UserCheck size={14} /> Switch to Brand Manager
-          </Button>
-        </Glass>
+          />
+        </div>
       )}
 
       {/* Metric Health Strip */}
@@ -140,9 +134,17 @@ export function GapRadarPage() {
       </div>
 
       {isLoading ? (
-        <LoadingCards />
+        <LoadingState variant="cards" />
       ) : isError ? (
-        <ApiFailure error={error} retry={() => refetch()} />
+        <ErrorState error={error} retry={() => refetch()} />
+      ) : radarItems.length === 0 ? (
+        <EmptyState
+          icon={Radar}
+          title="Zero guideline gaps detected"
+          description="Signals from creator dismissals highlight ambiguous brand policies. As team members dismiss findings with reasons, friction clusters will automatically appear here."
+          actionText="Inspect Brand Kit"
+          actionHref="/brand-kit"
+        />
       ) : (
         <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
           {/* Left Column: Cards or Table */}

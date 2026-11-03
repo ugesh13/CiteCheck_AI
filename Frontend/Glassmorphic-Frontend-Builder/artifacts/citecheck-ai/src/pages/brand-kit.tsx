@@ -22,10 +22,17 @@ import {
   roleName,
 } from '@/components/ui-atoms';
 import { BrandKitFacts } from '@/components/brand-kit-facts';
+import {
+  EmptyState,
+  LoadingState,
+  ErrorState,
+  PermissionDenied,
+} from '@/components/states';
 
 export function BrandKitPage() {
   const { data, isLoading, isError, error, refetch } = useBrandKit();
   const user = useSession((s) => s.user);
+  const demoRole = useSession((s) => s.demoRole);
   const client = useQueryClient();
   const [tab, setTab] = useState<'guidelines' | 'facts' | 'terms'>('facts');
   const [addOpen, setAddOpen] = useState(false);
@@ -135,6 +142,16 @@ export function BrandKitPage() {
         }
       />
 
+      {!canEdit && (
+        <div className="mb-4">
+          <PermissionDenied
+            requiredRole="brand_manager"
+            actionName="create, edit, or delete approved brand guidelines, facts, and terms"
+            onSwitchRole={() => demoRole('brand_manager')}
+          />
+        </div>
+      )}
+
       {/* Tabs Switcher */}
       <Glass className="mb-5 flex flex-wrap items-center justify-between gap-4 p-3 sm:p-4">
         <div className="flex rounded-xl bg-background/45 p-1">
@@ -158,9 +175,9 @@ export function BrandKitPage() {
       </Glass>
 
       {isLoading ? (
-        <LoadingCards />
+        <LoadingState variant="table" />
       ) : isError ? (
-        <ApiFailure error={error} retry={() => refetch()} />
+        <ErrorState error={error} retry={() => refetch()} />
       ) : (
         <div className="grid gap-3">
           {/* TAB 1: GUIDELINES */}
