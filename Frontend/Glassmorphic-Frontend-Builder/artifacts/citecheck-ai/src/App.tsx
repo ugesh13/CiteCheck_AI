@@ -306,6 +306,7 @@ function AppShell({ children }: { children: ReactNode }) {
   const logout = useSession((s) => s.logout);
   const theme = useSession((s) => s.theme);
   const setTheme = useSession((s) => s.setTheme);
+  const demoRole = useSession((s) => s.demoRole);
   const { data: commandDraftsRaw } = useDrafts();
   const commandDrafts = Array.isArray(commandDraftsRaw) ? commandDraftsRaw : [];
   const [palette, setPalette] = useState(false);
@@ -695,7 +696,7 @@ function LoginPage() {
   const [docxOpen, setDocxOpen] = useState(false);
   const [, setPath] = useLocation();
   const factsList = brandKitData?.facts || [];
-  const expiredFacts = factsList.filter((f) => getFactExpiry(f.review_date).status === 'expired');
+  const expiredFacts = factsList.filter((f: any) => getFactExpiry(f.expires_on || f.review_date).status === 'expired');
 
       return <div className="page-enter">
         <DocxUploadModal open={docxOpen} onClose={() => setDocxOpen(false)} onCreated={(id) => setPath(`/drafts/${id}`)} />
@@ -709,7 +710,7 @@ function LoginPage() {
               <div>
                 <b className="text-xs text-foreground">Fact Expiry Radar · {expiredFacts.length} {expiredFacts.length === 1 ? 'claim requires' : 'claims require'} human confirmation</b>
                 <p className="mt-0.5 text-[10px] text-muted-foreground">
-                  {expiredFacts.map((f) => `${f.code} (${f.fact_text.slice(0, 32)}…)`).join(' and ')} review {expiredFacts.length === 1 ? 'date has' : 'dates have'} passed. Evidence gates require human approval for expired claims.
+                  {expiredFacts.map((f: any) => `${f.id || f.code || f.fact_code || 'FACT'} (${(f.text || f.fact_text || '').slice(0, 32)}...)`).join(' and ')} review {expiredFacts.length === 1 ? 'date has' : 'dates have'} passed. Evidence gates require human approval for expired claims.
                 </p>
               </div>
             </div>
@@ -929,8 +930,8 @@ function LoginPage() {
   const facts = brandKitQuery.data?.facts || [];
   const expiredFinding = allFindings.find((item) => {
     if (item.status !== 'open') return false;
-    const citedFact = facts.find((f) => f.id === item.source_ref_id);
-    const exp = citedFact ? getFactExpiry(citedFact.review_date) : null;
+    const citedFact = facts.find((f: any) => f.id === item.source_ref_id || f.fact_code === item.source_ref_id);
+    const exp = citedFact ? getFactExpiry(citedFact.expires_on || citedFact.review_date) : null;
     return item.verification_status === 'blocked_expired_fact' || Boolean(exp?.isExpired);
   });
   const hasExpiredFact = Boolean(expiredFinding);

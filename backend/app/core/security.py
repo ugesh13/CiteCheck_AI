@@ -185,7 +185,7 @@ def get_current_user(
 
     # Direct demo preview tokens
     for role_key, persona in DEMO_PERSONAS.items():
-        if token == f"preview-token-{role_key}":
+        if token in (f"preview-token-{role_key}", f"preview-{role_key}", f"preview_token_{role_key}"):
             return CurrentUser(
                 id=persona["id"],
                 user_id=persona["id"],

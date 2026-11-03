@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 import io
 import logging
 import re
+from collections import Counter
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 import zipfile
@@ -49,29 +50,36 @@ class LoginRequest(BaseModel):
 
 
 class DraftInput(BaseModel):
-    title: str
-    text: str = ""
+    title: str = Field(..., min_length=1, max_length=200)
+    text: str = Field("", max_length=100000)
 
 
 class VersionInput(BaseModel):
-    text: Optional[str] = None
+    text: Optional[str] = Field(None, max_length=100000)
 
 
 class DecisionInput(BaseModel):
     action: str  # accept | edit | dismiss
-    reason: Optional[str] = None
-    edited_fix: Optional[str] = None
+    reason: Optional[str] = Field(None, max_length=1000)
+    edited_fix: Optional[str] = Field(None, max_length=5000)
     dismissal_theme: Optional[str] = None
     is_false_positive: bool = False
 
 
 class CommentInput(BaseModel):
-    text: str
+    text: str = Field(..., min_length=1, max_length=2000)
     anchor_finding_id: Optional[str] = None
 
 
+class GapRadarActionInput(BaseModel):
+    action: str  # 'edit_text' | 'exempt_context' | 'clarify_thresholds' | 'archive'
+    new_text: Optional[str] = None
+    reason: str = Field(..., min_length=1, max_length=1000)
+    details: Optional[str] = Field(None, max_length=1000)
+
+
 class RequestChangesInput(BaseModel):
-    reason: str
+    reason: str = Field(..., min_length=1, max_length=1000)
 
 
 class RenewFactInput(BaseModel):
@@ -729,6 +737,7 @@ def get_gap_radar():
     """
     Computes Guideline Gap Radar from real brand kit and dismissal events.
     Status: 'Unclear Policy' when flagged >= 4 and dismissal_rate >= 50%.
+    Review Recommended when dismissal_rate >= 20%.
     """
     store = get_store()
     brand_kit = store.get_brand_kit()
@@ -739,40 +748,122 @@ def get_gap_radar():
     radar_items = []
     for g in guidelines:
         gid = g["id"]
-        rule_events = [e for e in dismissal_events if e.get("rule_or_fact_id") == gid]
+        rule_events = [e for e in dismissal_events if str(e.get("rule_or_fact_id")) == str(gid)]
         dismissed_count = len(rule_events)
         # Flagged count baseline
         flagged_count = max(dismissed_count + 3, 5) if dismissed_count > 0 else 4
         rate = round((dismissed_count / flagged_count) * 100, 1)
 
         is_unclear = flagged_count >= 4 and rate >= 50.0
+        status_label = "Unclear Policy" if is_unclear else ("Review Recommended" if rate >= 20.0 else "Healthy")
 
-        reasons = [e.get("reason", "") for e in rule_events if e.get("reason")][:3]
+        reasons = [e.get("reason", "") for e in rule_events if e.get("reason")]
         if not reasons:
             reasons = ["Guideline is performing with standard adherence."]
 
         recommendation = (
             f"The '{g['title']}' rule was dismissed {dismissed_count} times; recommend adding permitted exceptions for claims backed by third-party evidence."
             if is_unclear
-            else f"Guideline is performing well with high adherence ({100 - rate:.1f}%)."
+            else (
+                f"Moderate dismissal volume ({rate}%); review rule examples to align creator expectations."
+                if rate >= 20.0
+                else f"Guideline is performing well with high adherence ({100 - rate:.1f}%)."
+            )
         )
+
+        theme_counts = dict(Counter(e.get("theme", "general") for e in rule_events if e.get("theme")))
 
         radar_items.append({
             "rule": g["title"],
             "guideline_id": gid,
             "guideline_code": gid,
             "category": g.get("category", "tone"),
+            "text": g.get("text") or g.get("description", ""),
+            "severity": g.get("severity", "medium"),
+            "is_active": g.get("is_active", True) if "is_active" in g else g.get("active", True),
             "flagged": flagged_count,
             "accepted": flagged_count - dismissed_count,
             "dismissed": dismissed_count,
             "dismissal_rate": rate,
-            "status": "Unclear Policy" if is_unclear else "Healthy / Clear",
-            "reasons": reasons,
+            "status": status_label,
+            "reasons": reasons[:5],
+            "events": rule_events,
+            "themes": theme_counts,
+            "revisions": store.get_rule_revisions(gid),
             "recommendation": recommendation,
         })
 
     # Sort so Unclear Policies appear first
     return sorted(radar_items, key=lambda x: x["dismissal_rate"], reverse=True)
+
+
+@router.post("/api/gap-radar/{guideline_id}/action")
+@router.post("/api/v1/gap-radar/{guideline_id}/action")
+def perform_gap_radar_action(
+    guideline_id: str,
+    body: GapRadarActionInput,
+    user: CurrentUser = Depends(require_role("brand_manager")),
+):
+    """Brand managers only: remediate ambiguous policies directly from Gap Radar."""
+    store = get_store()
+    brand_kit = store.get_brand_kit()
+    guidelines = brand_kit.get("guidelines", [])
+    target = next((g for g in guidelines if str(g.get("id")) == str(guideline_id)), None)
+    if not target:
+        raise HTTPException(status_code=404, detail=f"Guideline '{guideline_id}' not found")
+
+    old_text = target.get("text") or target.get("description", "")
+    new_text = old_text
+    action_type = body.action
+
+    if action_type == "edit_text":
+        new_text = body.new_text or old_text
+        updated = store.update_guideline(
+            guideline_id,
+            {"text": new_text},
+            actor=user.name,
+            reason=body.reason or "Edited guideline text via Gap Radar",
+        )
+    elif action_type == "exempt_context":
+        exemption_clause = f"\n\n[Permitted Contexts & Exceptions]: {body.reason}"
+        if body.details:
+            exemption_clause += f" (Condition: {body.details})"
+        new_text = f"{old_text.strip()}{exemption_clause}"
+        updated = store.update_guideline(
+            guideline_id,
+            {"text": new_text},
+            actor=user.name,
+            reason=f"Added contextual exemption: {body.reason}",
+        )
+    elif action_type == "clarify_thresholds":
+        threshold_clause = f"\n\n[Clarified Thresholds & Criteria]: {body.reason}"
+        if body.details:
+            threshold_clause += f" (Parameters: {body.details})"
+        new_text = f"{old_text.strip()}{threshold_clause}"
+        updated = store.update_guideline(
+            guideline_id,
+            {"text": new_text},
+            actor=user.name,
+            reason=f"Clarified rule thresholds: {body.reason}",
+        )
+    elif action_type == "archive":
+        updated = store.update_guideline(
+            guideline_id,
+            {"is_active": False, "status": "archived"},
+            actor=user.name,
+            reason=body.reason or "Archived guideline to eliminate false positive friction",
+        )
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown Gap Radar action '{action_type}'")
+
+    return {
+        "success": True,
+        "action": action_type,
+        "guideline_id": guideline_id,
+        "old_text": old_text,
+        "new_text": new_text,
+        "updated": updated,
+    }
 
 
 # ─── 9. Tamper-Evident Audit Logs ────────────────────────────────────────────
@@ -869,6 +960,8 @@ def reset_demo_workspace(
 
 
 # ─── 12. .docx Document Ingestion ────────────────────────────────────────────
+@router.post("/api/parse-docx")
+@router.post("/api/v1/parse-docx")
 @router.post("/api/drafts/parse-docx")
 @router.post("/api/v1/drafts/parse-docx")
 async def parse_docx_file(file: UploadFile = File(...)):
@@ -876,161 +969,8 @@ async def parse_docx_file(file: UploadFile = File(...)):
     Parse a Microsoft Word .docx file into structured blocks.
     Validates file extension, size limit (<= 4 MB), zip integrity, and password encryption.
     """
-    import docx
+    from app.engine.docx_parser import parse_docx_structure
 
     filename = file.filename or "uploaded-document.docx"
-    ext = filename.split(".")[-1].lower() if "." in filename else ""
-
-    if ext == "doc":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Legacy .doc format is not supported. Please save or export the document as a modern .docx file and re-upload.",
-        )
-    if ext != "docx":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported file format '.{ext}'. CiteCheck accepts Microsoft Word .docx files only.",
-        )
-
     content = await file.read()
-    if not content:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="The uploaded file is empty (0 bytes). Please upload a valid .docx document.",
-        )
-
-    # 4 MB size limit (Vercel serverless request body budget; max 5 MB)
-    if len(content) > 4 * 1024 * 1024:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="File size exceeds the 4 MB limit (exceeds the 5 MB limit). Please upload a smaller document.",
-        )
-
-    # Verify zip integrity
-    if not zipfile.is_zipfile(io.BytesIO(content)):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Corrupted or invalid document archive. The file does not appear to be a valid Microsoft Word .docx document.",
-        )
-
-    try:
-        zf = zipfile.ZipFile(io.BytesIO(content))
-        namelist = zf.namelist()
-        if "EncryptedPackage" in namelist or any("encryption" in n.lower() for n in namelist):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Password-protected or encrypted documents are not supported. Please remove the password and re-upload.",
-            )
-        if "word/document.xml" not in namelist:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid .docx structure: missing word/document.xml. Please ensure this is an uncorrupted Word document.",
-            )
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.error("ZIP inspection failure: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Unable to read document archive structure.",
-        )
-
-    try:
-        doc = docx.Document(io.BytesIO(content))
-    except Exception as exc:
-        logger.error("python-docx load failure: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Failed to parse document structure. Please verify the document is not corrupted.",
-        )
-
-    blocks: List[Dict[str, Any]] = []
-    text_offset = 0
-
-    # Section Headers
-    for s_idx, section in enumerate(doc.sections):
-        if section.header:
-            for p_idx, p in enumerate(section.header.paragraphs):
-                txt = p.text.strip()
-                if txt:
-                    start = text_offset
-                    end = start + len(txt)
-                    blocks.append({"id": f"hdr-{s_idx}-{p_idx}", "type": "header", "level": 0, "text": txt, "start": start, "end": end})
-                    text_offset = end + 2
-
-    # Body Paragraphs & Headings
-    heading_count = 0
-    paragraph_count = 0
-    for p_idx, p in enumerate(doc.paragraphs):
-        txt = p.text.strip()
-        if not txt:
-            continue
-        style_name = (p.style.name or "").lower() if p.style else ""
-        if "heading" in style_name:
-            heading_count += 1
-            lvl = 1
-            try:
-                lvl = int(style_name.replace("heading", "").strip())
-            except ValueError:
-                pass
-            start = text_offset
-            end = start + len(txt)
-            blocks.append({"id": f"h-{p_idx}", "type": "heading", "level": lvl, "text": txt, "start": start, "end": end})
-            text_offset = end + 2
-        elif "list" in style_name or p.text.startswith("•") or p.text.startswith("-"):
-            start = text_offset
-            end = start + len(txt)
-            blocks.append({"id": f"li-{p_idx}", "type": "list_item", "level": 1, "text": txt, "start": start, "end": end})
-            text_offset = end + 2
-        else:
-            paragraph_count += 1
-            start = text_offset
-            end = start + len(txt)
-            blocks.append({"id": f"p-{p_idx}", "type": "paragraph", "level": 0, "text": txt, "start": start, "end": end})
-            text_offset = end + 2
-
-    # Tables
-    table_count = len(doc.tables)
-    for t_idx, table in enumerate(doc.tables):
-        for r_idx, row in enumerate(table.rows):
-            cell_texts = [c.text.strip() for c in row.cells if c.text.strip()]
-            if cell_texts:
-                txt = " | ".join(cell_texts)
-                start = text_offset
-                end = start + len(txt)
-                blocks.append({"id": f"t-{t_idx}-r{r_idx}", "type": "table_row", "level": 0, "text": txt, "start": start, "end": end})
-                text_offset = end + 2
-
-    # Section Footers
-    for s_idx, section in enumerate(doc.sections):
-        if section.footer:
-            for p_idx, p in enumerate(section.footer.paragraphs):
-                txt = p.text.strip()
-                if txt:
-                    start = text_offset
-                    end = start + len(txt)
-                    blocks.append({"id": f"ftr-{s_idx}-{p_idx}", "type": "footer", "level": 0, "text": txt, "start": start, "end": end})
-                    text_offset = end + 2
-
-    extracted_text = "\n\n".join(b["text"] for b in blocks)
-    if not extracted_text.strip():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="The uploaded .docx document contains no readable text, paragraphs, or table content.",
-        )
-
-    words = len(extracted_text.split())
-    chars = len(extracted_text)
-
-    return {
-        "filename": filename,
-        "size_bytes": len(content),
-        "text": extracted_text,
-        "char_count": chars,
-        "word_count": words,
-        "paragraph_count": paragraph_count,
-        "heading_count": heading_count,
-        "table_count": table_count,
-        "page_estimate": max(1, round(words / 300)),
-        "blocks": blocks,
-    }
+    return parse_docx_structure(content, filename=filename)

@@ -83,10 +83,10 @@ export function FindingCard({
   const tone = finding.severity === 'high' ? 'rose' : finding.severity === 'medium' ? 'amber' : 'teal';
 
   // Real ground truth lookup from Brand Kit
-  const citedFact = brandKitQuery.data?.facts?.find((f) => f.id === finding.source_ref_id);
+  const citedFact = brandKitQuery.data?.facts?.find((f: any) => f.id === finding.source_ref_id || f.fact_code === finding.source_ref_id);
   const citedGuideline = brandKitQuery.data?.guidelines?.find((g) => g.id === finding.source_ref_id);
   const citedTerm = brandKitQuery.data?.terms?.find((t) => t.id === finding.source_ref_id);
-  const factExpiry = citedFact ? getFactExpiry(citedFact.review_date) : null;
+  const factExpiry = citedFact ? getFactExpiry(citedFact.expires_on || citedFact.review_date) : null;
   const isFactExpired = finding.verification_status === 'blocked_expired_fact' || Boolean(factExpiry?.isExpired);
 
   const statusChip = isFactExpired ? (
