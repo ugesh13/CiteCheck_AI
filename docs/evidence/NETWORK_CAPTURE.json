@@ -1,0 +1,14 @@
+{
+  "timestamp": "2026-11-03T16:15:19.843Z",
+  "baseUrl": "https://citecheck-jet.vercel.app",
+  "totalRequests": 44,
+  "capturedHosts": [
+    "citecheck-jet.vercel.app",
+    "fonts.googleapis.com"
+  ],
+  "fontRequestsCount": 10,
+  "trackerRequestsCount": 0,
+  "localStorageKeys": [],
+  "cookiesCount": 0,
+  "cookies": []
+}
