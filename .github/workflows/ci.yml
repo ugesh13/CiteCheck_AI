@@ -30,8 +30,7 @@ jobs:
         env:
           PYTHONPATH: .:backend
           SUPABASE_URL: https://mock.supabase.co
-          SUPABASE_SERVICE_ROLE_KEY: mock_key
+          SUPABASE_ANON_KEY: mock-anon-key-for-ci-testing-only
+          SUPABASE_SERVICE_ROLE_KEY: mock-service-role-key-for-ci-testing-only
           SUPABASE_JWT_SECRET: super-secret-jwt-key-for-ci-testing-only-12345
-        run: |
-          pytest backend/tests/ -v --maxfail=1
-
+        run: pytest backend/tests/ -v --maxfail=1
