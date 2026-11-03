@@ -28,7 +28,7 @@ jobs:
 
       - name: Run Pytest Suite
         env:
-          PYTHONPATH: backend
+          PYTHONPATH: .:backend
           SUPABASE_URL: https://mock.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: mock_key
           SUPABASE_JWT_SECRET: super-secret-jwt-key-for-ci-testing-only-12345
