@@ -36,3 +36,4 @@ with open('backend/app/core/limiter.py', 'w', encoding='utf-8') as f:
     f.write('\n'.join(new_lines) + '\n')
 
 print('Successfully updated limiter.py with hashed IP keys')
+

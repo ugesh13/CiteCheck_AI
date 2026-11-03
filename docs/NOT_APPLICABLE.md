@@ -34,3 +34,4 @@ CiteCheck AI is an open prototype and contest submission developed exclusively f
 1. We never claim compliance or certification where none exists.
 2. We never copy-paste boilerplate terms for features that do not exist.
 3. Every claim in our interface is grounded in code, tests, or empirical measurements.
+

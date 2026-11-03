@@ -11,3 +11,4 @@ for root, dirs, files in os.walk('Frontend/Glassmorphic-Frontend-Builder/artifac
                 keys.add(m.group(1))
 
 print('Frontend localStorage keys:', sorted(list(keys)))
+

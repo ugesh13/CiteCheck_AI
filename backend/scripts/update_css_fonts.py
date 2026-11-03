@@ -25,3 +25,4 @@ with open(css_file, 'w', encoding='utf-8') as f:
     f.write(content)
 
 print('Updated src/index.css to zero-network system font stack')
+

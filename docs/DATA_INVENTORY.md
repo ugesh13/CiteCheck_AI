@@ -73,3 +73,4 @@ Automated continuous verification tests:
 - `backend/tests/test_data_inventory.py::test_ip_pseudonymization_in_rate_limiter` ✅
 - `backend/tests/test_data_inventory.py::test_local_storage_keys_inventory` ✅
 - Network capture log: `docs/evidence/NETWORK_CAPTURE.json` ✅
+
