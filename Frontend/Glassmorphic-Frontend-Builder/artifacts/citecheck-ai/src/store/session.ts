@@ -38,7 +38,7 @@ type SessionState = {
 
 let isLoggingOut = false;
 
-export const useSession = create<SessionState>((set) => ({
+export const useSession = create<SessionState>((set, get) => ({
   token: getInitialToken(),
   user: getInitialUser(),
   selectedFinding: null,
@@ -78,6 +78,30 @@ export const useSession = create<SessionState>((set) => ({
   setTheme: (theme) => set({ theme }),
   setReducedMotion: (reducedMotion) => set({ reducedMotion }),
   demoRole: async (role) => {
+    const currentUser = get().user;
+    const isRealUser = Boolean(
+      currentUser?.name &&
+      !currentUser.id.startsWith('preview-') &&
+      !['Meera Nair', 'Nisha Rao', 'Arjun Mehta'].includes(currentUser.name)
+    );
+
+    // If a real logged-in user (e.g. via Google OAuth) is testing different roles,
+    // preserve their identity, name, and email while switching their active role.
+    if (isRealUser && currentUser) {
+      const updatedUser: User = {
+        ...currentUser,
+        role,
+      };
+      try {
+        localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+        localStorage.setItem('citecheck_oauth_role', role);
+      } catch {
+        // ignore
+      }
+      set({ user: updatedUser });
+      return;
+    }
+
     try {
       const email = role === 'creator' ? 'meera@lumenpay.example' : role === 'reviewer' ? 'nisha@lumenpay.example' : 'arjun@lumenpay.example';
       const res = await fetch('/api/auth/login', {
