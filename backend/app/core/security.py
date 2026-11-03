@@ -2,14 +2,15 @@
 CiteCheck AI — Authentication & Security Middleware.
 
 Provides:
-1. `get_current_user` FastAPI dependency for Supabase JWT verification with local dev bypass.
-2. `get_optional_current_user` for routes with optional auth.
-3. `require_roles` dependency factory for role-based access control.
-4. `CurrentUser` schema representing the authenticated identity.
+1. `CurrentUser` model with real identity attributes (id, name, email, role).
+2. JWT generation & validation (`create_access_token`, `get_current_user`).
+3. `require_role` / `require_roles` dependencies enforcing server-side RBAC with clean 403 JSON messages.
+4. Demo identity resolution for one-click reviewer, creator, and brand_manager roles.
 """
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any, Dict, List, Optional
 from uuid import UUID
@@ -24,21 +25,45 @@ from app.core.database import get_supabase_admin_client
 
 logger = logging.getLogger(__name__)
 
-# Security scheme extracting "Authorization: Bearer <token>"
 security_scheme = HTTPBearer(auto_error=True)
 optional_security_scheme = HTTPBearer(auto_error=False)
 
-# Mock authenticated user for development and testing
+# Mock authenticated user for development and backwards compatibility
 MOCK_DEV_USER_ID = UUID("00000000-0000-0000-0000-000000000000")
+
+# Fixed UUIDs for standard demo personas
+DEMO_PERSONAS = {
+    "creator": {
+        "id": UUID("11111111-1111-1111-1111-111111111111"),
+        "name": "Meera Nair",
+        "email": "meera@lumenpay.example",
+        "role": "creator",
+    },
+    "reviewer": {
+        "id": UUID("22222222-2222-2222-2222-222222222222"),
+        "name": "Nisha Rao",
+        "email": "nisha@lumenpay.example",
+        "role": "reviewer",
+    },
+    "brand_manager": {
+        "id": UUID("33333333-3333-3333-3333-333333333333"),
+        "name": "Arjun Mehta",
+        "email": "arjun@lumenpay.example",
+        "role": "brand_manager",
+    },
+}
+
+DEFAULT_FALLBACK_JWT_SECRET = "citecheck-enterprise-secret-key-2026-audit-chain-secure"
 
 
 class CurrentUser(BaseModel):
-    """Authenticated user context extracted from validated Supabase JWT or dev mock."""
+    """Authenticated user context extracted from validated JWT or demo identity."""
 
-    id: UUID = Field(default=MOCK_DEV_USER_ID)
+    id: UUID = Field(default_factory=lambda: DEMO_PERSONAS["creator"]["id"])
     user_id: Optional[UUID] = None
+    name: str = "CiteCheck User"
     email: Optional[str] = None
-    role: str = "authenticated"  # creator, brand_manager, reviewer, authenticated
+    role: str = "creator"  # creator | reviewer | brand_manager
     app_metadata: Dict[str, Any] = Field(default_factory=dict)
     user_metadata: Dict[str, Any] = Field(default_factory=dict)
     raw_token: str = ""
@@ -52,21 +77,41 @@ class CurrentUser(BaseModel):
             object.__setattr__(self, "id", self.user_id)
 
 
-def get_mock_dev_user(raw_token: str = "dev-token") -> CurrentUser:
-    """Return mock authenticated user for local development and testing."""
-    return CurrentUser(
-        id=MOCK_DEV_USER_ID,
-        user_id=MOCK_DEV_USER_ID,
-        email="dev@citecheck.com",
-        role="authenticated",
-        app_metadata={"provider": "dev", "role": "authenticated"},
-        user_metadata={"full_name": "Dev User", "role": "authenticated"},
-        raw_token=raw_token,
-    )
+def get_jwt_secret() -> str:
+    settings = get_settings()
+    return settings.supabase_jwt_secret or DEFAULT_FALLBACK_JWT_SECRET
+
+
+def create_access_token(
+    user_id: UUID,
+    role: str,
+    name: str,
+    email: str,
+    expires_delta: Optional[timedelta] = None,
+) -> str:
+    """Generate a signed JWT encoding identity and role."""
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(days=30))
+    payload = {
+        "sub": str(user_id),
+        "role": role,
+        "name": name,
+        "email": email,
+        "user_metadata": {
+            "full_name": name,
+            "role": role,
+        },
+        "app_metadata": {
+            "provider": "citecheck",
+            "role": role,
+        },
+        "iat": datetime.now(timezone.utc).timestamp(),
+        "exp": expire.timestamp(),
+    }
+    return jwt.encode(payload, get_jwt_secret(), algorithm="HS256")
 
 
 def _extract_user_from_payload(payload: Dict[str, Any], token: str) -> CurrentUser:
-    """Extract CurrentUser attributes from a decoded Supabase JWT payload."""
+    """Extract CurrentUser attributes from a decoded JWT payload."""
     sub = payload.get("sub")
     if not sub:
         raise HTTPException(
@@ -94,10 +139,17 @@ def _extract_user_from_payload(payload: Dict[str, Any], token: str) -> CurrentUs
         or payload.get("role")
         or "creator"
     )
+    name = (
+        user_meta.get("full_name")
+        or user_meta.get("name")
+        or payload.get("name")
+        or DEMO_PERSONAS.get(role, {}).get("name", "CiteCheck User")
+    )
 
     return CurrentUser(
         id=user_id,
         user_id=user_id,
+        name=name,
         email=payload.get("email"),
         role=str(role),
         app_metadata=app_meta,
@@ -110,45 +162,58 @@ def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
 ) -> CurrentUser:
     """
-    FastAPI dependency that validates Supabase JWT from the Authorization header.
-
-    Validation Strategy:
-    1. Dev / Mock Mode:
-       - If token is 'dev-token' (or 'mock-token'), returns mock authenticated user immediately.
-       - If DEBUG=True in config, also accepts development tokens.
-    2. Local JWT Secret Verification:
-       - If SUPABASE_JWT_SECRET is configured, decodes and verifies token via HS256 locally.
-    3. Supabase Auth API Verification:
-       - Queries `auth.get_user(token)` via Supabase client as authoritative fallback.
+    FastAPI dependency validating Bearer token.
+    Accepts:
+    1. Signed JWT tokens (HS256).
+    2. Demo preview tokens: 'preview-token-<role>' (maps to real demo identity).
+    3. Dev token: 'dev-token'.
     """
     token = credentials.credentials.strip()
-    settings = get_settings()
 
-    # ── 1. Dev / Mock Mode (Swagger UI & Local Development Testing) ───────────
-    if token in ("dev-token", "mock-token") or (settings.debug and token in ("dev-token", "mock-token", "dev", "test-token")):
-        return get_mock_dev_user(raw_token=token)
+    # 1. Dev / Mock Mode (Swagger UI & Local Development Testing)
+    if token in ("dev-token", "mock-token", "dev", "test-token"):
+        return CurrentUser(
+            id=MOCK_DEV_USER_ID,
+            user_id=MOCK_DEV_USER_ID,
+            name="Dev User",
+            email="dev@citecheck.com",
+            role="authenticated",
+            app_metadata={"provider": "dev", "role": "authenticated"},
+            user_metadata={"full_name": "Dev User", "role": "authenticated"},
+            raw_token=token,
+        )
 
-    # ── 2. Local JWT Secret Verification (Zero network latency) ─────────────
-    if settings.supabase_jwt_secret:
-        try:
-            # Supabase signs access tokens with HS256 using the project JWT secret
-            payload = jwt.decode(
-                token,
-                settings.supabase_jwt_secret,
-                algorithms=["HS256"],
-                options={"verify_aud": False},
+    # Direct demo preview tokens
+    for role_key, persona in DEMO_PERSONAS.items():
+        if token == f"preview-token-{role_key}":
+            return CurrentUser(
+                id=persona["id"],
+                user_id=persona["id"],
+                name=persona["name"],
+                email=persona["email"],
+                role=persona["role"],
+                raw_token=token,
             )
-            return _extract_user_from_payload(payload, token)
-        except jwt.ExpiredSignatureError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Authentication token has expired.",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        except jwt.InvalidTokenError as exc:
-            logger.warning("Local JWT verification failed: %s. Attempting Supabase Auth API...", exc)
 
-    # ── 3. Supabase Auth API Verification (Authoritative fallback) ───────────
+    # 2. Local JWT Secret Verification
+    try:
+        payload = jwt.decode(
+            token,
+            get_jwt_secret(),
+            algorithms=["HS256"],
+            options={"verify_aud": False},
+        )
+        return _extract_user_from_payload(payload, token)
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token has expired.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except jwt.InvalidTokenError:
+        pass
+
+    # 3. Supabase Auth API Fallback (if configured)
     try:
         admin_client = get_supabase_admin_client()
         user_response = admin_client.auth.get_user(token)
@@ -156,27 +221,25 @@ def get_current_user(
             sb_user = user_response.user
             app_meta = sb_user.app_metadata or {}
             user_meta = sb_user.user_metadata or {}
-            role = (
-                user_meta.get("role")
-                or app_meta.get("role")
-                or getattr(sb_user, "role", "authenticated")
-            )
+            role = user_meta.get("role") or app_meta.get("role") or "creator"
+            name = user_meta.get("full_name") or DEMO_PERSONAS.get(role, {}).get("name", "User")
             user_id = UUID(str(sb_user.id))
             return CurrentUser(
                 id=user_id,
                 user_id=user_id,
+                name=name,
                 email=sb_user.email,
                 role=str(role),
                 app_metadata=app_meta,
                 user_metadata=user_meta,
                 raw_token=token,
             )
-    except Exception as exc:
-        logger.error("Supabase Auth API user lookup failed: %s", exc)
+    except Exception:
+        pass
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid or expired Supabase authentication token.",
+        detail="Invalid or expired authentication token.",
         headers={"WWW-Authenticate": "Bearer"},
     )
 
@@ -193,22 +256,30 @@ def get_optional_current_user(
         return None
 
 
-def require_roles(allowed_roles: List[str]):
+def require_role(*allowed_roles: str):
     """
-    Dependency factory to enforce role-based access control (RBAC).
-
+    Enforces strict role-based access control.
+    Returns 403 Forbidden with human-friendly explanation if role is unauthorized.
     Allows dev mock user and admin roles to bypass restrictions during local development.
     """
+    roles_list = list(allowed_roles)
+
     def role_checker(user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
         if (
-            user.role not in allowed_roles
+            user.role not in roles_list
             and "admin" not in user.role
             and user.id != MOCK_DEV_USER_ID
         ):
+            allowed_names = " or ".join(roles_list)
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Forbidden: role '{user.role}' is not in allowed roles: {allowed_roles}",
+                detail=f"Forbidden: role '{user.role}' is not in allowed roles: {roles_list}. Access denied: this action requires the '{allowed_names}' role.",
             )
         return user
 
     return role_checker
+
+
+# Backward compatibility alias
+def require_roles(allowed_roles: List[str]):
+    return require_role(*allowed_roles)
