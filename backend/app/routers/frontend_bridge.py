@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 import io
 import logging
 import re
+from collections import Counter
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 import zipfile
@@ -68,6 +69,13 @@ class DecisionInput(BaseModel):
 class CommentInput(BaseModel):
     text: str
     anchor_finding_id: Optional[str] = None
+
+
+class GapRadarActionInput(BaseModel):
+    action: str  # 'edit_text' | 'exempt_context' | 'clarify_thresholds' | 'archive'
+    new_text: Optional[str] = None
+    reason: str
+    details: Optional[str] = None
 
 
 class RequestChangesInput(BaseModel):
@@ -729,6 +737,7 @@ def get_gap_radar():
     """
     Computes Guideline Gap Radar from real brand kit and dismissal events.
     Status: 'Unclear Policy' when flagged >= 4 and dismissal_rate >= 50%.
+    Review Recommended when dismissal_rate >= 20%.
     """
     store = get_store()
     brand_kit = store.get_brand_kit()
@@ -739,40 +748,122 @@ def get_gap_radar():
     radar_items = []
     for g in guidelines:
         gid = g["id"]
-        rule_events = [e for e in dismissal_events if e.get("rule_or_fact_id") == gid]
+        rule_events = [e for e in dismissal_events if str(e.get("rule_or_fact_id")) == str(gid)]
         dismissed_count = len(rule_events)
         # Flagged count baseline
         flagged_count = max(dismissed_count + 3, 5) if dismissed_count > 0 else 4
         rate = round((dismissed_count / flagged_count) * 100, 1)
 
         is_unclear = flagged_count >= 4 and rate >= 50.0
+        status_label = "Unclear Policy" if is_unclear else ("Review Recommended" if rate >= 20.0 else "Healthy")
 
-        reasons = [e.get("reason", "") for e in rule_events if e.get("reason")][:3]
+        reasons = [e.get("reason", "") for e in rule_events if e.get("reason")]
         if not reasons:
             reasons = ["Guideline is performing with standard adherence."]
 
         recommendation = (
             f"The '{g['title']}' rule was dismissed {dismissed_count} times; recommend adding permitted exceptions for claims backed by third-party evidence."
             if is_unclear
-            else f"Guideline is performing well with high adherence ({100 - rate:.1f}%)."
+            else (
+                f"Moderate dismissal volume ({rate}%); review rule examples to align creator expectations."
+                if rate >= 20.0
+                else f"Guideline is performing well with high adherence ({100 - rate:.1f}%)."
+            )
         )
+
+        theme_counts = dict(Counter(e.get("theme", "general") for e in rule_events if e.get("theme")))
 
         radar_items.append({
             "rule": g["title"],
             "guideline_id": gid,
             "guideline_code": gid,
             "category": g.get("category", "tone"),
+            "text": g.get("text") or g.get("description", ""),
+            "severity": g.get("severity", "medium"),
+            "is_active": g.get("is_active", True) if "is_active" in g else g.get("active", True),
             "flagged": flagged_count,
             "accepted": flagged_count - dismissed_count,
             "dismissed": dismissed_count,
             "dismissal_rate": rate,
-            "status": "Unclear Policy" if is_unclear else "Healthy / Clear",
-            "reasons": reasons,
+            "status": status_label,
+            "reasons": reasons[:5],
+            "events": rule_events,
+            "themes": theme_counts,
+            "revisions": store.get_rule_revisions(gid),
             "recommendation": recommendation,
         })
 
     # Sort so Unclear Policies appear first
     return sorted(radar_items, key=lambda x: x["dismissal_rate"], reverse=True)
+
+
+@router.post("/api/gap-radar/{guideline_id}/action")
+@router.post("/api/v1/gap-radar/{guideline_id}/action")
+def perform_gap_radar_action(
+    guideline_id: str,
+    body: GapRadarActionInput,
+    user: CurrentUser = Depends(require_role("brand_manager")),
+):
+    """Brand managers only: remediate ambiguous policies directly from Gap Radar."""
+    store = get_store()
+    brand_kit = store.get_brand_kit()
+    guidelines = brand_kit.get("guidelines", [])
+    target = next((g for g in guidelines if str(g.get("id")) == str(guideline_id)), None)
+    if not target:
+        raise HTTPException(status_code=404, detail=f"Guideline '{guideline_id}' not found")
+
+    old_text = target.get("text") or target.get("description", "")
+    new_text = old_text
+    action_type = body.action
+
+    if action_type == "edit_text":
+        new_text = body.new_text or old_text
+        updated = store.update_guideline(
+            guideline_id,
+            {"text": new_text},
+            actor=user.name,
+            reason=body.reason or "Edited guideline text via Gap Radar",
+        )
+    elif action_type == "exempt_context":
+        exemption_clause = f"\n\n[Permitted Contexts & Exceptions]: {body.reason}"
+        if body.details:
+            exemption_clause += f" (Condition: {body.details})"
+        new_text = f"{old_text.strip()}{exemption_clause}"
+        updated = store.update_guideline(
+            guideline_id,
+            {"text": new_text},
+            actor=user.name,
+            reason=f"Added contextual exemption: {body.reason}",
+        )
+    elif action_type == "clarify_thresholds":
+        threshold_clause = f"\n\n[Clarified Thresholds & Criteria]: {body.reason}"
+        if body.details:
+            threshold_clause += f" (Parameters: {body.details})"
+        new_text = f"{old_text.strip()}{threshold_clause}"
+        updated = store.update_guideline(
+            guideline_id,
+            {"text": new_text},
+            actor=user.name,
+            reason=f"Clarified rule thresholds: {body.reason}",
+        )
+    elif action_type == "archive":
+        updated = store.update_guideline(
+            guideline_id,
+            {"is_active": False, "status": "archived"},
+            actor=user.name,
+            reason=body.reason or "Archived guideline to eliminate false positive friction",
+        )
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown Gap Radar action '{action_type}'")
+
+    return {
+        "success": True,
+        "action": action_type,
+        "guideline_id": guideline_id,
+        "old_text": old_text,
+        "new_text": new_text,
+        "updated": updated,
+    }
 
 
 # ─── 9. Tamper-Evident Audit Logs ────────────────────────────────────────────

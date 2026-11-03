@@ -334,6 +334,8 @@ export const api = {
     const res = await request<any[]>('/gap-radar');
     return Array.isArray(res) ? res : [];
   },
+  gapRadarAction: (guidelineId: string, data: { action: string; new_text?: string; reason: string; details?: string }) =>
+    request<{ success: boolean; action: string; guideline_id: string; new_text: string }>(`/gap-radar/${guidelineId}/action`, 'POST', data),
   auditLog: async () => {
     const res = await request<AuditItem[]>('/audit-log');
     return Array.isArray(res) ? res : [];

@@ -18,6 +18,18 @@ export const useFindings = (id: string) => useQuery({ queryKey: keys.findings(id
 export const useVersions = (id: string) => useQuery({ queryKey: keys.versions(id), queryFn: () => api.versions(id), enabled: !!id, ...queryOptions });
 export const useComments = (id: string) => useQuery({ queryKey: keys.comments(id), queryFn: () => api.comments(id), enabled: !!id, ...queryOptions });
 export const useGapRadar = () => useQuery({ queryKey: keys.radar, queryFn: api.gapRadar, ...queryOptions });
+export function useGapRadarAction() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ guidelineId, ...data }: { guidelineId: string; action: string; new_text?: string; reason: string; details?: string }) =>
+      api.gapRadarAction(guidelineId, data),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: keys.radar });
+      client.invalidateQueries({ queryKey: keys.brandKit });
+      client.invalidateQueries({ queryKey: keys.audit });
+    },
+  });
+}
 export const useAuditLog = () => useQuery({ queryKey: keys.audit, queryFn: api.auditLog, ...queryOptions });
 export const useFactsHealth = () => useQuery({ queryKey: ['facts-health'], queryFn: api.factsHealth, ...queryOptions });
 export const useNotifications = () => useQuery({ queryKey: ['notifications'], queryFn: api.notifications, ...queryOptions, refetchInterval: 15_000 });
