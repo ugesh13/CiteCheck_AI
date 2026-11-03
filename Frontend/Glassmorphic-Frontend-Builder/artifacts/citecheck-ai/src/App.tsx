@@ -546,6 +546,7 @@ function LoginPage() {
         provider: 'google',
         options: {
           redirectTo: redirectUrl,
+          scopes: 'openid email profile',
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',

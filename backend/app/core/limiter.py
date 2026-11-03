@@ -12,6 +12,7 @@ Implements a pure ASGI sliding-window rate limiter middleware with:
 from __future__ import annotations
 
 import collections
+import hashlib
 import json
 import time
 from typing import Deque, Dict, Tuple
@@ -84,7 +85,9 @@ class RateLimitMiddleware:
         auth_header = raw_headers.get(b"authorization", b"").decode("utf-8")
         
         if auth_header.startswith("Bearer "):
-            client_key = f"token:{auth_header[7:].strip()[:32]}"
+            token_prefix = auth_header[7:].strip()[:32]
+            token_hash = hashlib.sha256(f"citecheck-salt:{token_prefix}".encode("utf-8")).hexdigest()[:16]
+            client_key = f"token:{token_hash}"
         else:
             forwarded = raw_headers.get(b"x-forwarded-for", b"").decode("utf-8")
             if forwarded:
@@ -92,7 +95,9 @@ class RateLimitMiddleware:
             else:
                 client = scope.get("client")
                 client_ip = client[0] if client else "127.0.0.1"
-            client_key = f"ip:{client_ip}"
+            # Hash IP with salt so no raw IP addresses are stored or held in memory
+            ip_hash = hashlib.sha256(f"citecheck-salt:{client_ip}".encode("utf-8")).hexdigest()[:16]
+            client_key = f"ip:{ip_hash}"
 
         # Check specific review endpoint limit (10 runs / min)
         if "/review" in path:
