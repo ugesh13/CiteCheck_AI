@@ -19,6 +19,9 @@ export const useVersions = (id: string) => useQuery({ queryKey: keys.versions(id
 export const useComments = (id: string) => useQuery({ queryKey: keys.comments(id), queryFn: () => api.comments(id), enabled: !!id, ...queryOptions });
 export const useGapRadar = () => useQuery({ queryKey: keys.radar, queryFn: api.gapRadar, ...queryOptions });
 export const useAuditLog = () => useQuery({ queryKey: keys.audit, queryFn: api.auditLog, ...queryOptions });
+export const useFactsHealth = () => useQuery({ queryKey: ['facts-health'], queryFn: api.factsHealth, ...queryOptions });
+export const useNotifications = () => useQuery({ queryKey: ['notifications'], queryFn: api.notifications, ...queryOptions, refetchInterval: 15_000 });
+export const useFactHistory = (factId: string) => useQuery({ queryKey: ['fact-history', factId], queryFn: () => api.factHistory(factId), enabled: !!factId });
 export function useDecision(draftId: string) {
   const client = useQueryClient();
   return useMutation({ mutationFn: ({ id, ...data }: { id: string; action: 'accept' | 'edit' | 'dismiss'; reason?: string; edited_fix?: string }) => api.decision(id, data),

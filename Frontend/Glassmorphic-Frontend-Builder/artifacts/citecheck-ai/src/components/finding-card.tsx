@@ -3,9 +3,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { Check, X } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { Finding } from '@/lib/api/types';
 import { useBrandKit, useDecision } from '@/hooks/use-product-data';
 import { useSession } from '@/store/session';
+import { api } from '@/lib/api/endpoints';
 import { editSchema } from '@/lib/schemas';
 import { Button, Glass, Eyebrow, Tag, TextArea, getFactExpiry } from '@/components/ui-atoms';
 import { VerificationTrace } from '@/components/verification-trace';
@@ -34,6 +36,8 @@ export function FindingCard({
 }) {
   const decision = useDecision(draftId);
   const brandKitQuery = useBrandKit();
+  const queryClient = useQueryClient();
+  const user = useSession((s) => s.user);
   const [editOpen, setEditOpen] = useState(false);
   const [dismissOpen, setDismissOpen] = useState(false);
   const [dismissCategory, setDismissCategory] = useState(DISMISSAL_REASON_OPTIONS[0]);
@@ -149,6 +153,39 @@ export function FindingCard({
           {finding.fix_needs_human && <Tag tone="amber">Numbers guarded</Tag>}
           {isFactExpired && <Tag tone="rose">Source overdue re-verification</Tag>}
         </div>
+
+        {/* Expired Fact Warning Banner */}
+        {isFactExpired && (
+          <div className="mt-3 rounded-xl border border-rose-300/30 bg-rose-400/10 p-3 text-xs text-rose-700 dark:text-rose-200">
+            <div className="flex items-center justify-between">
+              <span className="font-bold">
+                ⚠️ Source expired {factExpiry ? `${factExpiry.days}d ago` : ''} ({finding.source_ref_id}). Draft cannot be approved until renewed.
+              </span>
+            </div>
+            {user?.role === 'brand_manager' ? (
+              <button
+                type="button"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  try {
+                    await api.renewFact(finding.source_ref_id, 90);
+                    await queryClient.invalidateQueries({ queryKey: ['brand-kit'] });
+                    toast.success(`Fact ${finding.source_ref_id} renewed for +90 days`);
+                  } catch (err: any) {
+                    toast.error(err?.message || 'Renewal failed');
+                  }
+                }}
+                className="mt-2 inline-flex items-center gap-1 rounded-lg bg-teal-300 px-2.5 py-1 text-[11px] font-bold text-slate-950 transition hover:bg-teal-200 cursor-pointer"
+              >
+                Renew fact (+90d)
+              </button>
+            ) : (
+              <p className="mt-1 text-[10px] text-rose-600/80 dark:text-rose-300/80">
+                Reviewers and creators must request renewal from the Brand Manager.
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-4 rounded-xl bg-background/45 p-3">

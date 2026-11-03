@@ -23,6 +23,9 @@ import { Toaster } from '@/components/ui/toaster';
 import { FindingCard } from '@/components/finding-card';
 import { VerifierFunnel } from '@/components/verifier-funnel';
 import { VerifierLabPage } from '@/pages/verifier-lab';
+import { BrandKitFacts } from '@/components/brand-kit-facts';
+import { NotificationCenter } from '@/components/notification-center';
+import { BrandKitPage } from '@/pages/brand-kit';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: true }, mutations: { retry: 0 } } });
 const nav = [
@@ -437,6 +440,7 @@ function AppShell({ children }: { children: ReactNode }) {
         <div className="hidden items-center gap-2 md:flex"><span className="mono rounded-full border border-border bg-card/50 px-3 py-1.5 text-[9px] uppercase tracking-widest text-muted-foreground">Lumen Pay · synthetic demo</span>
           <button onClick={() => setPalette(true)} className="flex items-center gap-2 rounded-xl border border-border bg-card/50 px-3 py-2 text-xs text-muted-foreground hover:bg-card" aria-label="Open command palette"><Search size={14} /> Jump to <kbd className="rounded border px-1.5 py-0.5 font-mono text-[9px]">⌘ K</kbd></button>
           <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="rounded-xl border border-border bg-card/50 p-2.5 text-muted-foreground hover:text-foreground" aria-label="Toggle theme" data-testid="button-theme-toggle">{theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}</button>
+          <NotificationCenter />
           {user ? (
             <div className="relative">
               <button
@@ -500,6 +504,7 @@ function AppShell({ children }: { children: ReactNode }) {
         <div className="flex items-center gap-2 md:hidden">
           <button onClick={() => setPalette(true)} aria-label="Search" className="rounded-xl border border-border p-2"><Search size={16} /></button>
           <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Toggle theme" className="rounded-xl border border-border p-2">{theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}</button>
+          <NotificationCenter />
           {user && (
             <button
               onClick={async () => { await logout(); toast.success('Signed out successfully'); setPath('/'); }}
@@ -788,92 +793,8 @@ function LoginPage() {
       </div>;
 }
 
-      function BrandKitPage() {
-  const {data, isLoading, isError, error, refetch} = useBrandKit();
-  const user = useSession((s) => s.user);
-      const client = useQueryClient();
-      const [tab, setTab] = useState<'guidelines' | 'facts' | 'terms'>('guidelines');
-      const [addOpen, setAddOpen] = useState(false);
-      const [editingId, setEditingId] = useState<string | null>(null);
-      const kitForm = useForm<any>({resolver: zodResolver(kitItemSchema), defaultValues: {kind: tab, title: '', text: '', source: '', review_date: '', banned: '', preferred: '', allow_ai: true } });
-        const canEdit = user?.role === 'brand_manager';
-        const kit = {
-          guidelines: Array.isArray(data?.guidelines) ? data.guidelines : [],
-          facts: Array.isArray(data?.facts) ? data.facts : [],
-          terms: Array.isArray(data?.terms) ? data.terms : [],
-        };
-  const add = kitForm.handleSubmit(async (values) => {
-    const {kind: _kind, ...payload } = values;
-        try {await api.saveKitItem(tab, payload, editingId || undefined); await client.invalidateQueries({queryKey: keys.kit }); setAddOpen(false); setEditingId(null); kitForm.reset({kind: tab, title: '', text: '', source: '', review_date: '', banned: '', preferred: '', allow_ai: true }); toast.success(editingId ? 'Brand kit entry updated' : 'Brand kit entry saved'); }
-        catch (e) {toast.error(e instanceof Error ? e.message : 'Could not save item'); }
-  });
-  const editItem = (id: string, item: any) => {
-          setEditingId(id);
-        kitForm.reset({
-          kind: tab, title: item.title || '', text: item.text || '', source: item.source || '',
-        review_date: item.review_date || '', banned: item.banned || '', preferred: item.preferred || '',
-        allow_ai: item.allow_ai ?? true,
-    });
-        setAddOpen(true);
-  };
-  const toggleAI = async (id: string, value: boolean) => {
-    if (tab !== 'facts') return;
-    const old = kit.facts.find((f) => f.id === id);
-        if (!old) return;
-        client.setQueryData(keys.kit, {...kit, facts: kit.facts.map((f) => f.id === id ? {...f, allow_ai: value } : f) });
-        try {await api.saveKitItem('facts', { ...old, allow_ai: value }, id); toast.success('AI use permission updated'); }
-        catch (e) {client.setQueryData(keys.kit, kit); toast.error(e instanceof Error ? e.message : 'Could not update fact'); }
-  };
-  const remove = async (id: string) => { if (!confirm(`Delete ${id} from the brand kit?`)) return; try {await api.deleteKitItem(tab, id); await client.invalidateQueries({queryKey: keys.kit }); toast.success('Entry deleted'); } catch (e) {toast.error(e instanceof Error ? e.message : 'Delete failed'); } };
-        return <div className="page-enter">
-          <PageHead eyebrow="Lumen Pay · Synthetic brand data" title="Brand kit" sub="The approved ground truth behind every finding. Managers own changes; everyone else can read." action={canEdit ? <Button onClick={() => { kitForm.reset({ kind: tab, title: '', text: '', source: '', review_date: '', banned: '', preferred: '', allow_ai: true }); setAddOpen(true); }} data-testid="button-add-kit-item"><Plus size={15} />Add {tab === 'facts' ? 'fact' : tab === 'terms' ? 'term' : 'guideline'}</Button> : <Tag>Read only · {roleName(user?.role)}</Tag>} />
-          <Glass className="mb-4 flex flex-wrap items-center justify-between gap-3 border-teal-300/25 bg-teal-300/[.05] p-3.5 sm:p-4">
-            <div className="flex items-center gap-3">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-teal-300/20 text-teal-600 dark:text-teal-200">
-                <Layers3 size={18} />
-              </span>
-              <div>
-                <b className="text-xs text-foreground">15 Approved Brand Kit Facts · Fact Expiry Engine</b>
-                <p className="mt-0.5 text-[10px] text-muted-foreground">11 Active · 2 Expired (FACT-03, FACT-11) · 2 Expiring in 30 days (FACT-14, FACT-15). Claims linked to expired facts pause for human confirmation.</p>
-              </div>
-            </div>
-            <div className="flex gap-1.5">
-              <Tag tone="teal">11 Active</Tag>
-              <Tag tone="rose">2 Expired</Tag>
-              <Tag tone="amber">2 Expiring soon</Tag>
-            </div>
-          </Glass>
-          <Glass className="mb-5 flex flex-wrap items-center justify-between gap-4 p-3 sm:p-4"><div className="flex rounded-xl bg-background/45 p-1">{(['guidelines', 'facts', 'terms'] as const).map((t) => <button onClick={() => setTab(t)} key={t} className={`rounded-lg px-4 py-2 text-xs font-bold capitalize transition ${tab === t ? 'bg-teal-300 text-slate-950 shadow' : 'text-muted-foreground hover:text-foreground'}`} data-testid={`tab-${t}`}>{t}{` · ${kit[t]?.length ?? 0}`}</button>)}</div><div className="flex items-center gap-2 text-[10px] text-muted-foreground"><span className="h-2 w-2 rounded-full bg-violet-400" />15 Ground-Truth Facts Seeded</div></Glass>
-          {isLoading ? <LoadingCards /> : isError ? <ApiFailure error={error} retry={() => refetch()} /> : <div className="grid gap-3">{tab === 'guidelines' && kit.guidelines.map((item) => <Glass key={item.id} className="glass-hover flex flex-col justify-between gap-4 p-5 sm:flex-row sm:items-center" data-testid={`card-guideline-${item.id}`}><div className="flex items-start gap-4"><span className="mono mt-1 text-[10px] text-violet-500">{item.id}</span><div><h3 className="font-bold">{item.title}</h3><p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">{item.text}</p></div></div><div className="flex items-center gap-2">{canEdit ? <><Button variant="quiet" onClick={() => editItem(item.id, item)} className="px-3 py-2 text-xs">Edit</Button><Button variant="quiet" onClick={() => remove(item.id)} className="px-3 py-2 text-xs">Remove</Button></> : <Tag>Manager owned</Tag>}</div></Glass>)}
-            {tab === 'facts' && kit.facts.map((item) => {
-              const exp = getFactExpiry(item.review_date);
-              return <Glass key={item.id} className="glass-hover grid gap-4 p-5 md:grid-cols-[130px_1fr_auto] md:items-center" data-testid={`card-fact-${item.id}`}>
-                <div>
-                  <span className="mono text-xs font-bold text-violet-500 dark:text-violet-200">{item.id}</span>
-                  <div className="mt-2"><Tag tone={exp.tone}>{exp.label}</Tag></div>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold leading-6">{item.text}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Source: <span className="text-foreground font-medium">{item.source}</span> <span className="mx-2">·</span> Review date: <span className={exp.isExpired ? 'font-bold text-rose-500' : exp.isExpiringSoon ? 'font-bold text-amber-500' : 'text-teal-600 dark:text-teal-300'}>{item.review_date}</span></p>
-                </div>
-                <div className="flex items-center justify-between gap-3 md:justify-end">
-                  <label className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                    <input type="checkbox" checked={item.allow_ai} disabled={!canEdit} onChange={(e) => toggleAI(item.id, e.target.checked)} className="accent-teal-400" data-testid={`toggle-fact-ai-${item.id}`} />
-                    Allow AI
-                  </label>
-                  {canEdit && <>
-                    <button onClick={() => editItem(item.id, item)} aria-label={`Edit ${item.id}`} className="rounded-lg p-2 text-muted-foreground hover:bg-teal-400/10 hover:text-teal-500"><Settings2 size={14} /></button>
-                    <button onClick={() => remove(item.id)} aria-label={`Delete ${item.id}`} className="rounded-lg p-2 text-muted-foreground hover:bg-rose-400/10 hover:text-rose-500"><X size={15} /></button>
-                  </>}
-                </div>
-              </Glass>;
-            })}
-            {tab === 'terms' && kit.terms.map((item) => <Glass key={item.id} className="glass-hover grid gap-4 p-5 sm:grid-cols-[1fr_auto_1fr_auto_auto] sm:items-center" data-testid={`card-term-${item.id}`}><div><Eyebrow>Don't say</Eyebrow><p className="mt-1 font-bold text-rose-500">{item.banned}</p></div><ArrowRight size={17} className="hidden text-muted-foreground sm:block" /><div><Eyebrow>Say instead</Eyebrow><p className="mt-1 font-bold text-teal-600 dark:text-teal-200">{item.preferred}</p></div>{canEdit && <><button onClick={() => editItem(item.id, item)} aria-label={`Edit ${item.id}`} className="justify-self-end rounded-lg p-2 text-muted-foreground hover:bg-teal-400/10 hover:text-teal-500"><Settings2 size={14} /></button><button onClick={() => remove(item.id)} aria-label={`Delete ${item.id}`} className="justify-self-end rounded-lg p-2 text-muted-foreground hover:bg-rose-400/10 hover:text-rose-500"><X size={15} /></button></>}</Glass>)}
-            {!(kit[tab]?.length) && <Glass className="p-8 text-center"><Layers3 className="mx-auto text-muted-foreground" /><h3 className="display mt-3 font-bold">No entries in this section yet</h3><p className="mt-1 text-sm text-muted-foreground">A manager can add approved material here.</p></Glass>}
-          </div>}
-          {addOpen && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/55 p-4 backdrop-blur-sm" onClick={() => { setAddOpen(false); setEditingId(null); }}><Glass className="w-full max-w-lg p-6" onClick={(e) => e.stopPropagation()}><div className="flex items-center justify-between"><h2 className="display text-xl font-bold">{editingId ? 'Edit' : 'Add'} {tab === 'facts' ? 'approved fact' : tab === 'terms' ? 'term pair' : 'guideline'}</h2><button onClick={() => { setAddOpen(false); setEditingId(null); }} aria-label="Close"><X size={18} /></button></div><form onSubmit={add} className="mt-5 grid gap-3" noValidate>{tab === 'guidelines' && <Field label="Title" {...kitForm.register('title')} error={kitForm.formState.errors.title?.message as string} />}{tab === 'terms' ? <><Field label="Banned wording" {...kitForm.register('banned')} error={kitForm.formState.errors.banned?.message as string} /><Field label="Preferred wording" {...kitForm.register('preferred')} error={kitForm.formState.errors.preferred?.message as string} /></> : <TextArea label={tab === 'facts' ? 'Approved fact' : 'Guideline text'} rows={3} {...kitForm.register('text')} error={kitForm.formState.errors.text?.message as string} />}{tab === 'facts' && <><Field label="Source" {...kitForm.register('source')} error={kitForm.formState.errors.source?.message as string} /><Field label="Review date" type="date" {...kitForm.register('review_date')} error={kitForm.formState.errors.review_date?.message as string} /><label className="flex gap-2 text-xs"><input type="checkbox" {...kitForm.register('allow_ai')} className="accent-teal-400" />Allow AI to use</label></>}<div className="mt-2 flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => { setAddOpen(false); setEditingId(null); }}>Cancel</Button><Button type="submit">{editingId ? 'Save changes' : 'Save to brand kit'}</Button></div></form></Glass></div>}
-        </div>;
-}
+// BrandKitPage is imported from @/pages/brand-kit
+
 
         function DraftsPage() {
   const {data, isLoading, isError, error, refetch} = useDrafts();
@@ -1165,6 +1086,15 @@ function LoginPage() {
           const canEdit = user?.role === 'creator';
           const findingList = Array.isArray(findingsQuery.data) ? findingsQuery.data : [];
   const activeFindings = findingList.filter((f) => f.status === 'open');
+  const brandKitQuery = useBrandKit();
+  const facts = brandKitQuery.data?.facts || [];
+  const draftExpiredFinding = findingList.find((f) => {
+    if (f.status !== 'open') return false;
+    const citedFact = facts.find((k) => k.id === f.source_ref_id);
+    const exp = citedFact ? getFactExpiry(citedFact.review_date) : null;
+    return f.verification_status === 'blocked_expired_fact' || Boolean(exp?.isExpired);
+  });
+  const draftHasExpiredFact = Boolean(draftExpiredFinding);
   useEffect(() => { if (draftQuery.data && !initialized) {setText(draftQuery.data.text); setInitialized(true); } }, [draftQuery.data, initialized]);
           const commentForm = useForm<{ text: string }>({resolver: zodResolver(commentSchema), defaultValues: {text: '' } });
           const submitComment = commentForm.handleSubmit(async ({text: comment }) => { try {await addComment.mutateAsync({ text: comment }); commentForm.reset(); toast.success('Comment added'); } catch (e) {toast.error(e instanceof Error ? e.message : 'Comment failed'); } });
@@ -1174,7 +1104,7 @@ function LoginPage() {
           if (draftQuery.isError) return <ApiFailure error={draftQuery.error} retry={() => draftQuery.refetch()} />;
           if (!current) return <Glass className="p-8">Draft not found. <Link href="/drafts" className="text-teal-600">Back to drafts</Link></Glass>;
   const filtered = findingList.filter((f) => findingFilter === 'All' || findingFilter === 'Rules' && f.source === 'rules' || findingFilter === 'AI-assisted' && f.source === 'ai' || findingFilter === 'Needs human review' && (f.confidence < .8 || f.fix_needs_human) || findingFilter === 'Resolved' && f.status !== 'open');
-          return <div className="page-enter"><button onClick={() => history.back()} className="mb-4 inline-flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground"><ArrowLeft size={14} />Back</button><PageHead eyebrow="Draft review room" title={current.title} sub={`DRAFT v${current.version} · ${current.status}`} action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => { runReview.mutate(); toast('Running five-gate review…'); }} disabled={runReview.isPending} data-testid="button-run-review"><RefreshCw size={14} className={runReview.isPending ? 'animate-spin' : ''} />{runReview.isPending ? 'Reviewing…' : 'Run review'}</Button>{user?.role === 'reviewer' && current.status.toLowerCase() === 'in review' && (<Button onClick={async () => { try { await api.approve(id); await client.invalidateQueries({ queryKey: keys.draft(id) }); await client.invalidateQueries({ queryKey: keys.drafts }); await client.invalidateQueries({ queryKey: keys.audit }); toast.success(`Draft "${current.title}" approved and locked`); } catch (e: any) { toast.error(e?.message || 'Approval failed'); } }} className="bg-teal-300 font-bold text-slate-950 hover:bg-teal-200"><LockKeyhole size={14} />Approve & lock version</Button>)}<Button onClick={saveVersion} data-testid="button-submit-review"><Send size={14} />Submit for review</Button></div>} />
+          return <div className="page-enter"><button onClick={() => history.back()} className="mb-4 inline-flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground"><ArrowLeft size={14} />Back</button><PageHead eyebrow="Draft review room" title={current.title} sub={`DRAFT v${current.version} · ${current.status}`} action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => { runReview.mutate(); toast('Running five-gate review…'); }} disabled={runReview.isPending} data-testid="button-run-review"><RefreshCw size={14} className={runReview.isPending ? 'animate-spin' : ''} />{runReview.isPending ? 'Reviewing…' : 'Run review'}</Button>{user?.role === 'reviewer' && current.status.toLowerCase() === 'in review' && (<Button disabled={draftHasExpiredFact} title={draftHasExpiredFact ? `Blocked by Gate 5: ${draftExpiredFinding?.source_ref_id} is expired. Renew fact to unblock publication.` : undefined} onClick={async () => { try { await api.approve(id); await client.invalidateQueries({ queryKey: keys.draft(id) }); await client.invalidateQueries({ queryKey: keys.drafts }); await client.invalidateQueries({ queryKey: keys.audit }); toast.success(`Draft "${current.title}" approved and locked`); } catch (e: any) { toast.error(e?.message || 'Approval failed'); } }} className="bg-teal-300 font-bold text-slate-950 hover:bg-teal-200"><LockKeyhole size={14} />Approve & lock version</Button>)}<Button onClick={saveVersion} data-testid="button-submit-review"><Send size={14} />Submit for review</Button></div>} />
             <div className="mb-3 flex gap-1 rounded-xl border border-border bg-card/45 p-1 lg:hidden">{(['editor', 'findings'] as const).map((tab) => <button key={tab} onClick={() => setMobileTab(tab)} className={`flex-1 rounded-lg py-2 text-xs font-bold capitalize ${mobileTab === tab ? 'bg-teal-300 text-slate-950' : 'text-muted-foreground'}`}>{tab === 'findings' ? `Findings · ${findingList.length}` : tab}</button>)}</div>
             {!canEdit && <Glass className="mb-4 p-4"><div className="flex items-center gap-2 text-xs font-bold"><LockKeyhole size={14} />Read-only draft view</div><p className="mt-1 text-[10px] text-muted-foreground">Creator-only edits and finding decisions are disabled for this role.</p></Glass>}
             <div className="grid gap-4 lg:grid-cols-[1.02fr_.98fr]">
@@ -1243,6 +1173,16 @@ function LoginPage() {
   const allFindings = Array.isArray(findingsQuery.data) ? findingsQuery.data : [];
   const openFindings = allFindings.filter((f) => f.status === 'open');
   const resolvedFindings = allFindings.filter((f) => f.status !== 'open');
+  const brandKitQuery = useBrandKit();
+  const facts = brandKitQuery.data?.facts || [];
+  const expiredFinding = allFindings.find((item) => {
+    if (item.status !== 'open') return false;
+    const citedFact = facts.find((f) => f.id === item.source_ref_id);
+    const exp = citedFact ? getFactExpiry(citedFact.review_date) : null;
+    return item.verification_status === 'blocked_expired_fact' || Boolean(exp?.isExpired);
+  });
+  const hasExpiredFact = Boolean(expiredFinding);
+  const expiredFact = facts.find((f) => f.id === expiredFinding?.source_ref_id);
 
   const saveReviewerNote = async () => {
     if (!draft || !note.trim()) return;
@@ -1393,14 +1333,16 @@ function LoginPage() {
 
                 <div className="mt-4 grid gap-3">
                   {allFindings.map((item) => {
-                    const isExpired = item.source_ref_id === 'FACT-11' || item.source_ref_id === 'FACT-03';
+                    const citedFact = facts.find((f) => f.id === item.source_ref_id);
+                    const exp = citedFact ? getFactExpiry(citedFact.review_date) : null;
+                    const isExpired = item.verification_status === 'blocked_expired_fact' || Boolean(exp?.isExpired);
                     return (
                       <div key={item.id} className="rounded-2xl border border-border bg-background/35 p-4">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="flex items-center gap-2">
                             <Tag tone={item.severity === 'high' ? 'rose' : 'amber'}>{item.severity}</Tag>
                             {item.status !== 'open' ? <Tag tone="teal">Resolved</Tag> : <Tag tone="neutral">Open</Tag>}
-                            {isExpired && <Tag tone="rose">⚠️ Source Expired · Human confirmation needed</Tag>}
+                            {isExpired && <Tag tone="rose">⚠️ Source Expired ({exp ? `${exp.days}d ago` : 'Expired'}) · Gate 5 Lock</Tag>}
                           </div>
                           <span className="mono text-xs font-bold text-violet-600 dark:text-violet-200">{item.source_ref_id}</span>
                         </div>
@@ -1431,11 +1373,24 @@ function LoginPage() {
                   className="mt-3 w-full rounded-xl border border-border bg-background/40 p-3 text-xs outline-none focus:border-teal-400"
                   data-testid="input-review-note"
                 />
+                {hasExpiredFact && (
+                  <div className="mt-3 rounded-xl border border-rose-300/30 bg-rose-400/10 p-3 text-xs text-rose-700 dark:text-rose-200 flex items-center gap-2.5">
+                    <ShieldAlert size={16} className="shrink-0 text-rose-500" />
+                    <span>
+                      <b>Blocked by Gate 5:</b> Fact {expiredFinding?.source_ref_id} expired on {expiredFact?.review_date || 'review date'}. Renew the fact in Brand Kit to unblock publication.
+                    </span>
+                  </div>
+                )}
                 <div className="mt-4 flex flex-wrap justify-end gap-2.5">
                   <Button variant="outline" onClick={() => setRequestOpen(true)} disabled={user?.role !== 'reviewer'} data-testid="button-request-changes">
                     Request changes
                   </Button>
-                  <Button onClick={approve} disabled={user?.role !== 'reviewer'} data-testid="button-approve">
+                  <Button
+                    onClick={approve}
+                    disabled={user?.role !== 'reviewer' || hasExpiredFact}
+                    title={hasExpiredFact ? `Blocked by Gate 5: ${expiredFinding?.source_ref_id} expired on ${expiredFact?.review_date}. Renew fact to unblock publication.` : undefined}
+                    data-testid="button-approve"
+                  >
                     <LockKeyhole size={14} /> Approve & lock version
                   </Button>
                 </div>

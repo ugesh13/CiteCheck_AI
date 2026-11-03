@@ -831,6 +831,18 @@ def mark_notification_read(notification_id: str):
     return {"success": success}
 
 
+@router.post("/api/notifications/read-all")
+@router.patch("/api/notifications/read-all")
+@router.post("/api/v1/notifications/read-all")
+@router.patch("/api/v1/notifications/read-all")
+def mark_all_notifications_read():
+    """Mark all unread notifications as read."""
+    store = get_store()
+    for notif in store.list_notifications(unread_only=True):
+        store.mark_notification_read(notif["id"])
+    return {"success": True}
+
+
 # ─── 11. Demo Workspace Reset ────────────────────────────────────────────────
 @router.post("/api/demo/reset")
 @router.post("/api/v1/demo/reset")
