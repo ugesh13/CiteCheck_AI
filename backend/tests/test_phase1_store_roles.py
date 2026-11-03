@@ -157,11 +157,25 @@ class TestRoleBasedAccessControl:
 
 
 class TestHealthAndSystemStatus:
-    def test_health_reports_store_and_llm_status(self):
+    def test_health_reports_store_and_llm_status(self, monkeypatch):
+        monkeypatch.setattr("app.routers.health._check_database_connectivity", lambda: True)
         resp = client.get("/api/v1/health")
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "healthy"
+        assert data["database"] == "connected"
+        assert data["store_backend"] in ("memory", "supabase")
+        assert data["llm_status"] in ("configured", "not_configured")
+        assert "CiteCheck blocks unsupported AI claims" in data["product_line"]
+        assert len(data["commit"]) > 0
+
+    def test_health_reports_degraded_when_database_unavailable(self, monkeypatch):
+        monkeypatch.setattr("app.routers.health._check_database_connectivity", lambda: False)
+        resp = client.get("/api/v1/health")
+        assert resp.status_code == 503
+        data = resp.json()
+        assert data["status"] == "degraded"
+        assert data["database"] == "disconnected"
         assert data["store_backend"] in ("memory", "supabase")
         assert data["llm_status"] in ("configured", "not_configured")
         assert "CiteCheck blocks unsupported AI claims" in data["product_line"]
