@@ -66,9 +66,10 @@ class RateLimitMiddleware:
         "/openapi.json",
     }
 
-    def __init__(self, app, requests_per_minute: int = 120):
+    def __init__(self, app, requests_per_minute: int = 120, review_requests_per_minute: int = 10):
         self.app = app
         self.limiter = SlidingWindowRateLimiter(requests_per_minute=requests_per_minute)
+        self.review_limiter = SlidingWindowRateLimiter(requests_per_minute=review_requests_per_minute, window_seconds=60)
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -92,6 +93,32 @@ class RateLimitMiddleware:
                 client = scope.get("client")
                 client_ip = client[0] if client else "127.0.0.1"
             client_key = f"ip:{client_ip}"
+
+        # Check specific review endpoint limit (10 runs / min)
+        if "/review" in path:
+            rev_allowed, rev_remaining, rev_reset = self.review_limiter.is_allowed(f"rev:{client_key}")
+            if not rev_allowed:
+                body = json.dumps({
+                    "detail": "Review rate limit exceeded. Maximum 10 reviews per minute per client.",
+                    "code": "RATE_LIMIT_EXCEEDED",
+                }).encode("utf-8")
+
+                await send({
+                    "type": "http.response.start",
+                    "status": 429,
+                    "headers": [
+                        (b"content-type", b"application/json"),
+                        (b"x-ratelimit-limit", b"10"),
+                        (b"x-ratelimit-remaining", b"0"),
+                        (b"x-ratelimit-reset", str(rev_reset).encode("utf-8")),
+                        (b"retry-after", str(rev_reset).encode("utf-8")),
+                    ],
+                })
+                await send({
+                    "type": "http.response.body",
+                    "body": body,
+                })
+                return
 
         allowed, remaining, reset_secs = self.limiter.is_allowed(client_key)
 

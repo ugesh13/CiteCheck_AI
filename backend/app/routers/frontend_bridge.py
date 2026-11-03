@@ -50,36 +50,36 @@ class LoginRequest(BaseModel):
 
 
 class DraftInput(BaseModel):
-    title: str
-    text: str = ""
+    title: str = Field(..., min_length=1, max_length=200)
+    text: str = Field("", max_length=100000)
 
 
 class VersionInput(BaseModel):
-    text: Optional[str] = None
+    text: Optional[str] = Field(None, max_length=100000)
 
 
 class DecisionInput(BaseModel):
     action: str  # accept | edit | dismiss
-    reason: Optional[str] = None
-    edited_fix: Optional[str] = None
+    reason: Optional[str] = Field(None, max_length=1000)
+    edited_fix: Optional[str] = Field(None, max_length=5000)
     dismissal_theme: Optional[str] = None
     is_false_positive: bool = False
 
 
 class CommentInput(BaseModel):
-    text: str
+    text: str = Field(..., min_length=1, max_length=2000)
     anchor_finding_id: Optional[str] = None
 
 
 class GapRadarActionInput(BaseModel):
     action: str  # 'edit_text' | 'exempt_context' | 'clarify_thresholds' | 'archive'
     new_text: Optional[str] = None
-    reason: str
-    details: Optional[str] = None
+    reason: str = Field(..., min_length=1, max_length=1000)
+    details: Optional[str] = Field(None, max_length=1000)
 
 
 class RequestChangesInput(BaseModel):
-    reason: str
+    reason: str = Field(..., min_length=1, max_length=1000)
 
 
 class RenewFactInput(BaseModel):
@@ -960,6 +960,8 @@ def reset_demo_workspace(
 
 
 # ─── 12. .docx Document Ingestion ────────────────────────────────────────────
+@router.post("/api/parse-docx")
+@router.post("/api/v1/parse-docx")
 @router.post("/api/drafts/parse-docx")
 @router.post("/api/v1/drafts/parse-docx")
 async def parse_docx_file(file: UploadFile = File(...)):
