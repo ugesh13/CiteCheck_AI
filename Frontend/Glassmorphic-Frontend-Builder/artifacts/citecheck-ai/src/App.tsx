@@ -20,6 +20,9 @@ import { useAddComment, useAuditLog, useBrandKit, useComments, useCreateDraft, u
 import { changesSchema, commentSchema, dismissSchema, draftSchema, editSchema, kitItemSchema, loginSchema } from '@/lib/schemas';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
+import { FindingCard } from '@/components/finding-card';
+import { VerifierFunnel } from '@/components/verifier-funnel';
+import { VerifierLabPage } from '@/pages/verifier-lab';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: true }, mutations: { retry: 0 } } });
 const nav = [
@@ -27,6 +30,7 @@ const nav = [
   { href: '/drafts', label: 'Drafts', icon: FileText },
   { href: '/brand-kit', label: 'Brand kit', icon: Layers3 },
   { href: '/review', label: 'Review queue', icon: CheckCheck },
+  { href: '/verifier-lab', label: 'Verifier Lab', icon: ShieldCheck },
   { href: '/gap-radar', label: 'Gap Radar', icon: Radar },
   { href: '/audit', label: 'Audit log', icon: History },
 ];
@@ -1182,8 +1186,26 @@ function LoginPage() {
               <div className={`${mobileTab === 'editor' ? 'hidden lg:block' : ''} grid min-w-0 content-start gap-4`}>
                 <Glass className="p-4"><div className="flex items-center justify-between"><div><Eyebrow>Findings · {findingList.length}</Eyebrow><h3 className="display mt-1 font-bold">Evidence to review</h3></div><PanelRight size={17} className="text-muted-foreground" /></div><div className="mt-3 flex gap-1 overflow-x-auto pb-1">{['All', 'Rules', 'AI-assisted', 'Needs human review', 'Resolved'].map((f) => <button key={f} onClick={() => setFindingFilter(f)} className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[9px] font-bold ${findingFilter === f ? 'bg-violet-300/20 text-violet-700 dark:text-violet-200' : 'border border-border text-muted-foreground'}`}>{f}</button>)}</div></Glass>
                 {findingsQuery.isLoading ? <LoadingCards /> : findingsQuery.isError ? <ApiFailure error={findingsQuery.error} retry={() => findingsQuery.refetch()} /> : filtered.length ? <div className="grid gap-3">{filtered.map((finding, index) => <FindingCard key={finding.id} finding={finding} draftId={id} index={index} canResolve={canEdit} />)}</div> : <Glass className="p-7 text-center"><BadgeCheck className="mx-auto text-teal-500" /><h3 className="display mt-2 font-bold">Nothing in this view</h3><p className="mt-1 text-xs text-muted-foreground">Try a different filter or run a review.</p></Glass>}
-                <GateStepper dropped={Array.isArray(runReview.data?.dropped) ? runReview.data.dropped : []} />
-                <Glass className="flex items-center gap-3 p-4"><span className="grid h-9 w-9 place-items-center rounded-xl bg-amber-300/15 text-amber-600 dark:text-amber-200"><ShieldCheck size={17} /></span><p className="text-[10px] leading-5 text-muted-foreground">AI suggests, humans decide. Findings are evidence signals, not proof of real-world truth.</p></Glass>
+                <VerifierFunnel summary={runReview.data?.summary} dropped={Array.isArray(runReview.data?.dropped) ? runReview.data.dropped : []} findingsCount={findingList.length} />
+                <Glass className="flex flex-wrap items-center justify-between gap-3 p-4 border-teal-300/20 bg-teal-300/[.04]">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-9 w-9 place-items-center rounded-xl bg-teal-300/15 text-teal-600 dark:text-teal-200">
+                      <ShieldCheck size={17} />
+                    </span>
+                    <div>
+                      <b className="text-xs text-foreground">AI suggests; humans decide.</b>
+                      <p className="text-[10px] leading-4 text-muted-foreground">
+                        Every finding is cited, verified against Brand Kit ground truth, and human-approved.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mono text-[9px] text-muted-foreground">
+                    <span className="rounded-md border border-teal-300/30 bg-teal-300/10 px-2 py-0.5 text-teal-600 dark:text-teal-300 font-bold">
+                      Five-Gate Engine: Online
+                    </span>
+                    <span>Audit ref: rev-{id}</span>
+                  </div>
+                </Glass>
               </div>
             </div>
           </div>;
@@ -1851,10 +1873,10 @@ const workflow = [
           function HowItWorksPage() {
   const gates = [
     { num: 'Gate 1', title: 'Strict JSON Schema', desc: 'Validates field types, ranges, enums, and required properties. Rejects unparseable candidate outputs immediately.' },
-    { num: 'Gate 2', title: 'Brand Kit Database Match', desc: 'Confirms that the cited Fact ID (FACT-XX) or Guideline ID actually exists in the active Brand Kit database. Hallucinated codes are dropped.' },
-    { num: 'Gate 3', title: 'Exact Quote Match', desc: 'Normalizes whitespace and smart quotes, then verifies that the exact excerpt exists verbatim in the draft. Hallucinated quotes are dropped.' },
-    { num: 'Gate 4', title: 'Human Guardrails', desc: 'Extracts numbers, percentages, currency ($/₹), and dates from both excerpt and fix. If any values differ, flags for mandatory human sign-off.' },
-    { num: 'Gate 5', title: 'Fact Freshness & Fallback', desc: 'Checks fact review expiration dates. Overdue facts or confidence < 0.80 escalate to human reviewer review.' },
+    { num: 'Gate 2', title: 'Source Existence ("No source, no finding")', desc: 'Checks that cited fact_code (FACT-XX) or guideline_code actually exists in the active Brand Kit database. Hallucinated codes are dropped.' },
+    { num: 'Gate 3', title: 'Verbatim Exact Quote', desc: 'Normalizes whitespace and smart quotes, then verifies that the exact excerpt exists verbatim in the draft. Hallucinated quotes are dropped.' },
+    { num: 'Gate 4', title: 'Fix Guardrails (Tamper Guard)', desc: 'Extracts numbers, percentages, currency, and dates from excerpt vs fix. Unauthorized metric alterations flag mandatory human review.' },
+    { num: 'Gate 5', title: 'Freshness & Confidence Routing', desc: 'Blocks publication for claims citing expired facts (e.g. FACT-11). Routes low-confidence findings (<0.80) to human reviewers.' },
   ];
 
   return (
@@ -2178,6 +2200,7 @@ function RoutedPages() {
           <Route path="/drafts/new" component={NewDraftPage} />
           {editorMatch && <Route path="/drafts/:id"><DraftEditorPage id={editorMatch[1]} /></Route>}
           <Route path="/review" component={ReviewQueuePage} />
+          <Route path="/verifier-lab" component={VerifierLabPage} />
           <Route path="/gap-radar" component={GapRadarPage} />
           <Route path="/audit" component={AuditPage} />
           <Route path="/how-it-works" component={HowItWorksPage} />

@@ -1,5 +1,5 @@
 import { audit, brandKit, demoUsers, dropped, drafts, findings, versions } from './fixtures';
-import type { ApiError, AuditItem, BrandKit, Comment, Draft, Dropped, Finding, Role, User, Version } from './types';
+import type { ApiError, AuditItem, BrandKit, Comment, Draft, Dropped, Finding, ReviewSummary, Role, SelftestResponse, User, VerifierTryResponse, Version } from './types';
 import { useSession } from '@/store/session';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -305,7 +305,17 @@ export const api = {
   },
   createVersion: (id: string, data: { text?: string }) => request<Version>(`/drafts/${id}/versions`, 'POST', data),
   diff: (id: string, from: number, to: number) => request<any>(`/drafts/${id}/diff?from=${from}&to=${to}`),
-  review: (id: string) => request<{ findings: Finding[]; dropped: Dropped[] }>(`/drafts/${id}/review`, 'POST', {}),
+  review: (id: string) => request<{ draft_id: string; findings: Finding[]; dropped: Dropped[]; summary?: ReviewSummary }>(`/drafts/${id}/review`, 'POST', {}),
+  verifierSelftest: () => request<SelftestResponse>('/v1/verifier/selftest', 'GET'),
+  verifierTry: (data: { draft_text: string; candidate: Record<string, any> }) => request<VerifierTryResponse>('/v1/verifier/try', 'POST', data),
+  factsHealth: () => request<any>('/facts/health', 'GET'),
+  renewFact: (id: string, days = 90) => request<any>(`/facts/${id}/renew?days=${days}`, 'POST', {}),
+  archiveFact: (id: string) => request<any>(`/facts/${id}/archive`, 'POST', {}),
+  factHistory: (id: string) => request<any[]>(`/facts/${id}/history`, 'GET'),
+  notifications: () => request<any[]>('/notifications', 'GET'),
+  scanNotifications: () => request<any>('/notifications/scan', 'POST', {}),
+  verifyAuditLog: () => request<{ verified: boolean; message: string; [key: string]: any }>('/audit-log/verify', 'GET'),
+  resetDemo: () => request<{ status: string; message: string; timestamp: string }>('/v1/demo/reset', 'POST', {}),
   findings: async (id: string) => {
     const res = await request<Finding[]>(`/drafts/${id}/findings`);
     return Array.isArray(res) ? res : [];
