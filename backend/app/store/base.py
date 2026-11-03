@@ -274,3 +274,4 @@ class BaseStore(ABC):
     def reset_to_seed(self) -> None:
         """Reset the store with fresh, relative-dated demo data."""
         pass
+

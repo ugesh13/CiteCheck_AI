@@ -456,3 +456,4 @@ export function BrandKitFacts({ facts, canEdit, onEditFact, onRemoveFact }: Bran
     </div>
   );
 }
+

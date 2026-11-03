@@ -174,3 +174,4 @@ class TestHealthAndSystemStatus:
         )
         assert resp.status_code == 200
         assert resp.json()["success"] is True
+

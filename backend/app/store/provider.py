@@ -56,3 +56,4 @@ def set_store(store: BaseStore, name: str = "custom") -> None:
     global _STORE_INSTANCE, _STORE_BACKEND
     _STORE_INSTANCE = store
     _STORE_BACKEND = name
+

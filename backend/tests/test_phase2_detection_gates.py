@@ -199,3 +199,4 @@ class TestVerifierSelftestAndTrySandbox:
         data = resp.json()
         assert data["passed"] is True
         assert len(data["verification_trace"]) >= 5
+

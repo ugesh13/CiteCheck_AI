@@ -195,3 +195,4 @@ export function VerificationTrace({ finding, defaultOpen = false }: Verification
     </div>
   );
 }
+

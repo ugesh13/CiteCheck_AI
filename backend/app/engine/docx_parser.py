@@ -323,3 +323,4 @@ def parse_docx_structure(content: bytes, filename: str = "document.docx") -> Dic
         "tables": tables_data,
         "stats": stats,
     }
+

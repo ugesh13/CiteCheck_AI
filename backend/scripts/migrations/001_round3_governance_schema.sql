@@ -128,3 +128,4 @@ CREATE TABLE IF NOT EXISTS public.rule_revisions (
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_rule_revisions_rule ON public.rule_revisions(rule_id);
+

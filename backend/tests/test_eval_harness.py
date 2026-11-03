@@ -25,3 +25,4 @@ def test_evaluation_benchmark_precision_and_recall():
     assert metrics["true_positives"] > 0
     assert metrics["true_negatives"] > 0
     assert metrics["false_positives"] == 0 or metrics["precision"] >= 0.85
+

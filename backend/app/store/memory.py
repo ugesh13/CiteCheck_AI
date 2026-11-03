@@ -897,3 +897,4 @@ class MemoryStore(BaseStore):
             if not rule_id:
                 return [dict(e) for e in self._dismissal_events]
             return [dict(e) for e in self._dismissal_events if str(e.get("rule_or_fact_id")) == str(rule_id)]
+

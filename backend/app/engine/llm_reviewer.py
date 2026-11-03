@@ -238,3 +238,4 @@ def _format_llm_findings(raw_findings: List[Dict[str, Any]]) -> List[Dict[str, A
             "source": "llm",
         })
     return formatted
+

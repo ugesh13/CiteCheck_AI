@@ -75,3 +75,4 @@
   * **No expired claims published:** Guaranteed by automated Gate 5 freshness checks.
   * **No rigid bureaucracy:** Creator dismissals directly inform Brand Managers via the Guideline Gap Radar.
   * **Zero fiction:** All traces, hashes, and renewal histories are backed by real database models and code paths.
+

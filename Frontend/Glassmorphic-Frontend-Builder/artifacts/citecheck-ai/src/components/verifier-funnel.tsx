@@ -145,3 +145,4 @@ export function VerifierFunnel({ summary, dropped = [], findingsCount }: Verifie
     </div>
   );
 }
+

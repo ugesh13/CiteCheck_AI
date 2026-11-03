@@ -135,3 +135,4 @@ To verify detection accuracy honestly, we developed a 25-case ground truth test 
 | **p95 Execution Latency** | **0.74 ms** | < 500 ms | ✅ Sub-millisecond |
 
 *To reproduce locally: Run `python -m backend.eval.run_eval` or `pytest backend/tests/test_eval_harness.py`.*
+
