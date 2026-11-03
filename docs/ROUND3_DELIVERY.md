@@ -43,7 +43,7 @@ CiteCheck AI was engineered to eliminate hallucinated, unsubstantiated, and lega
   * **Auditability & Visibility:** Real per-gate trace attached to every finding (`verification_trace`). Dropped candidates stored with gate numbers and drop reasons.
   * **Interactive Verifier Lab:** Dedicated UI route (`/verifier-lab`) where developers and judges can test arbitrary text and observe real-time gate execution.
 * **Code Paths:** `backend/app/engine/verifier.py`, `backend/app/engine/claims.py`, `src/pages/verifier-lab.tsx`.
-* **Tests:** `backend/tests/test_verifier_gates.py` (20 tests), `backend/tests/test_eval_harness.py`.
+* **Tests:** `backend/tests/test_verifier.py` (20 tests), `backend/tests/test_eval_harness.py`.
 
 ---
 
@@ -60,8 +60,8 @@ CiteCheck AI was engineered to eliminate hallucinated, unsubstantiated, and lega
   * **Renewal Modal & History Drawer:** Brand Managers can extend validity dates with mandatory renewal reasons; full chronological audit history viewable per fact (`GET /api/v1/facts/{id}/history`).
   * **Review Room Hard Block:** If draft findings cite an expired fact, the Reviewer approval button is disabled with an amber warning: *"Sign-off blocked: 1 finding cites an expired fact"*.
   * **Notification Center:** Real-time bell popover alerting Brand Managers to facts requiring renewal.
-* **Code Paths:** `backend/app/store/supabase_store.py`, `backend/app/store/memory_store.py`, `src/components/brand-kit-facts.tsx`, `src/pages/review-room.tsx`.
-* **Tests:** `backend/tests/test_role_enforcement.py`, `backend/tests/test_verifier_gates.py`.
+* **Code Paths:** `backend/app/store/supabase.py`, `backend/app/store/memory.py`, `src/components/brand-kit-facts.tsx`, `src/pages/Review Queue Desk`.
+* **Tests:** `backend/tests/test_phase1_store_roles.py`, `backend/tests/test_verifier.py`.
 
 ---
 

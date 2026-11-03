@@ -35,8 +35,8 @@ In Round 3, we committed to and delivered three core architectural advances:
 
 | Promised Improvement | Implementation & Code Paths | Verification Evidence |
 | :--- | :--- | :--- |
-| **1. Five-Gate Verifier Hardening & Laboratory** | • Multi-tier pipeline in `backend/app/engine/verifier.py`<br>• Exact quote verification, fact ID validation, and confidence routing<br>• Real per-gate trace metadata attached to every candidate finding<br>• Dedicated test laboratory page at `/verifier-lab` | `backend/tests/test_verifier_gates.py`<br>(20 automated tests passing)<br>`backend/tests/test_eval_harness.py` |
-| **2. Proactive Fact Expiry Alerts & Governance** | • Real date evaluation relative to `now()` (Active, Expiring Soon, Expired)<br>• Database schema migration `001_round3_governance_schema.sql`<br>• Fact renewal modal, renewal history audit log, and notification center<br>• Hard sign-off block in Review Room preventing release of expired claims | `backend/tests/test_role_enforcement.py`<br>`src/components/brand-kit-facts.tsx`<br>`src/pages/review-room.tsx` |
+| **1. Five-Gate Verifier Hardening & Laboratory** | • Multi-tier pipeline in `backend/app/engine/verifier.py`<br>• Exact quote verification, fact ID validation, and confidence routing<br>• Real per-gate trace metadata attached to every candidate finding<br>• Dedicated test laboratory page at `/verifier-lab` | `backend/tests/test_verifier.py`<br>(20 automated tests passing)<br>`backend/tests/test_eval_harness.py` |
+| **2. Proactive Fact Expiry Alerts & Governance** | • Real date evaluation relative to `now()` (Active, Expiring Soon, Expired)<br>• Database schema migration `001_round3_governance_schema.sql`<br>• Fact renewal modal, renewal history audit log, and notification center<br>• Hard sign-off block in Review Room preventing release of expired claims | `backend/tests/test_phase1_store_roles.py`<br>`src/components/brand-kit-facts.tsx`<br>`src/App.tsx (Review Queue Desk)` |
 | **3. Native DOCX Parsing + Guideline Gap Radar** | • Secure Word extraction in `backend/app/engine/docx_parser.py`<br>• 4 MB Vercel budget, zip-bomb defense, encryption detection<br>• Headings & table extraction converted into semantic Markdown<br>• Living Guideline Gap Radar (`src/pages/gap-radar.tsx`) analyzing human dismissal patterns with one-click policy remediation | `backend/tests/test_docx_structure.py`<br>(11 security & format tests)<br>`backend/tests/test_gap_radar.py`<br>(4 policy tests) |
 
 Detailed implementation breakdown and before/after comparisons are documented in [docs/ROUND3_DELIVERY.md](docs/ROUND3_DELIVERY.md).
@@ -104,8 +104,8 @@ CiteCheck's backend is backed by **117 automated pytest cases** spanning unit te
 
 | Test File | Cases | What It Proves |
 | :--- | :---: | :--- |
-| `test_verifier_gates.py` | 20 | Exercises Gate 1 through Gate 5; verifies schema validity, exact excerpt matching, context preservation, expired fact routing, and 12-case adversarial selftest. |
-| `test_role_enforcement.py` | 22 | Verifies server-side role enforcement (Creator, Reviewer, Brand Manager); asserts 403 on unauthorized mutations, validates JWT token decoding, and tests fact renewals. |
+| `test_verifier.py` | 20 | Exercises Gate 1 through Gate 5; verifies schema validity, exact excerpt matching, context preservation, expired fact routing, and 12-case adversarial selftest. |
+| `test_phase1_store_roles.py` | 22 | Verifies server-side role enforcement (Creator, Reviewer, Brand Manager); asserts 403 on unauthorized mutations, validates JWT token decoding, and tests fact renewals. |
 | `test_docx_structure.py` | 11 | Proves 4 MB file size enforcement, zip-bomb defense (ratio and entry count), password encryption detection, and structural heading/table Markdown extraction. |
 | `test_gap_radar.py` | 4 | Verifies dynamic dismissal aggregation, dismissal rate calculations, theme breakdown, Brand Manager remediation actions, and audit logging. |
 | `test_adversarial.py` | 10 | Validates resilience against giant payloads, SQL injection strings, prompt injection delimiters, corrupted/forged JWTs, and audit trail tampering. |

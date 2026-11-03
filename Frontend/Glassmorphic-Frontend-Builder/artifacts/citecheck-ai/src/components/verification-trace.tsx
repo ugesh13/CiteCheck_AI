@@ -39,12 +39,12 @@ export function VerificationTrace({ finding, defaultOpen = false }: Verification
       passed: finding.verification_status !== 'blocked_expired_fact',
       confidence: finding.confidence,
       freshness:
-        finding.source_ref_id === 'FACT-03' || finding.source_ref_id === 'FACT-11' || finding.verification_status === 'blocked_expired_fact'
+        finding.verification_status === 'blocked_expired_fact'
           ? 'expired'
           : 'active',
       message:
-        finding.verification_status === 'blocked_expired_fact' || finding.source_ref_id === 'FACT-03' || finding.source_ref_id === 'FACT-11'
-          ? `Fact ${finding.source_ref_id} is expired. Blocked until renewed by Brand Manager.`
+        finding.verification_status === 'blocked_expired_fact'
+          ? `Fact ${finding.source_ref_id || 'reference'} is expired. Blocked until renewed by Brand Manager.`
           : finding.confidence < 0.8 || finding.verification_status === 'human_review_required'
           ? `Confidence ${(finding.confidence * 100).toFixed(0)}% < 80% threshold — routed to human reviewer.`
           : `Fact active and current. Confidence: ${(finding.confidence * 100).toFixed(0)}%.`,
