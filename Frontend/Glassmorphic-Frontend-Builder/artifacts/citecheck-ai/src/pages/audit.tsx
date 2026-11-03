@@ -59,7 +59,7 @@ export function AuditPage() {
     setVerifying(true);
     try {
       const res = await api.verifyAuditLog();
-      setVerificationResult(res as VerificationResult);
+      setVerificationResult(res as unknown as VerificationResult);
       if (res.valid) {
         toast.success(`Cryptographic integrity verified: ${res.total_records} audit entries linked.`);
       } else {

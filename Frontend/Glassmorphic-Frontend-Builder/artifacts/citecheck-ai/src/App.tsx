@@ -323,7 +323,7 @@ function AppShell({ children }: { children: ReactNode }) {
     };
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
   }, []);
-  const visibleNav = nav.filter((item) => !item.roles || item.roles.includes(user?.role || 'creator'));
+  const visibleNav = nav.filter((item: any) => !item.roles || item.roles.includes(user?.role || 'creator'));
   const go = (href: string) => { setPath(href); setPalette(false); setMore(false); };
   return <div className="app-atmosphere min-h-[100dvh]">
     <div className="aurora-orb orb-teal" /><div className="aurora-orb orb-violet" /><div className="aurora-orb orb-amber" />
@@ -338,25 +338,33 @@ function AppShell({ children }: { children: ReactNode }) {
           <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="rounded-xl border border-border bg-card/50 p-2.5 text-muted-foreground hover:text-foreground" aria-label="Toggle theme" data-testid="button-theme-toggle">{theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}</button>
           <NotificationCenter />
           <div className="hidden items-center gap-1 rounded-xl border border-border/70 bg-card/50 p-1 xl:flex">
+            <span className="mono text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-2">Personas:</span>
             {[
               ['creator', 'Meera (Creator)', 'bg-teal-300 text-slate-950 font-bold shadow-sm'],
               ['reviewer', 'Nisha (Reviewer)', 'bg-violet-400 text-slate-950 font-bold shadow-sm'],
               ['brand_manager', 'Arjun (Manager)', 'bg-amber-400 text-slate-950 font-bold shadow-sm'],
-            ].map(([r, label, activeClass]) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => {
-                  demoRole(r as any);
-                  toast.success(`Switched role to ${label}`);
-                }}
-                className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition cursor-pointer ${
-                  user?.role === r ? activeClass : 'text-muted-foreground hover:bg-white/5'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+            ].map(([r, defaultLabel, activeClass]) => {
+              const isCurrent = user?.role === r;
+              const displayName = isCurrent && user?.name && !['Meera Nair', 'Nisha Rao', 'Arjun Mehta'].includes(user.name)
+                ? `${user.name.split(' ')[0]} (${r === 'brand_manager' ? 'Manager' : r === 'reviewer' ? 'Reviewer' : 'Creator'})`
+                : defaultLabel;
+              return (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={async () => {
+                    await demoRole(r as any);
+                    toast.success(`Switched persona to ${displayName}`);
+                  }}
+                  className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition cursor-pointer ${
+                    isCurrent ? activeClass : 'text-muted-foreground hover:bg-white/5'
+                  }`}
+                  data-testid={`button-persona-${r}`}
+                >
+                  {displayName}
+                </button>
+              );
+            })}
           </div>
           {user ? (
             <div className="relative">
@@ -564,8 +572,9 @@ function LoginPage() {
     } catch {
       // In fixture / fallback mode, log in as the chosen role
       const role = form.getValues('role') || 'creator';
-      demoRole(role);
-      toast.success(`Welcome, ${role === 'creator' ? 'Meera Nair' : role === 'reviewer' ? 'Nisha Rao' : 'Arjun Mehta'}`);
+      await demoRole(role);
+      const activeName = useSession.getState().user?.name || (role === 'creator' ? 'Meera Nair' : role === 'reviewer' ? 'Nisha Rao' : 'Arjun Mehta');
+      toast.success(`Welcome, ${activeName}`);
       setPath('/dashboard');
     } finally {
       setBusy(false);

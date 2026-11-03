@@ -33,7 +33,7 @@ type SessionState = {
   setSelectedFinding: (id: string | null) => void;
   setTheme: (theme: 'dark' | 'light') => void;
   setReducedMotion: (value: boolean) => void;
-  demoRole: (role: Role) => void;
+  demoRole: (role: Role) => Promise<void>;
 };
 
 let isLoggingOut = false;
@@ -63,7 +63,6 @@ export const useSession = create<SessionState>((set) => ({
       sessionStorage.clear();
       const sb = getSupabase();
       if (sb) {
-        // scope: 'local' clears local session storage and avoids long network hangs
         await sb.auth.signOut({ scope: 'local' }).catch(() => {});
       }
     } catch {
@@ -78,19 +77,39 @@ export const useSession = create<SessionState>((set) => ({
   setSelectedFinding: (selectedFinding) => set({ selectedFinding }),
   setTheme: (theme) => set({ theme }),
   setReducedMotion: (reducedMotion) => set({ reducedMotion }),
-  demoRole: (role) => {
+  demoRole: async (role) => {
+    try {
+      const email = role === 'creator' ? 'meera@lumenpay.example' : role === 'reviewer' ? 'nisha@lumenpay.example' : 'arjun@lumenpay.example';
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: 'demo-persona', role }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.token && data?.user) {
+          localStorage.setItem(TOKEN_KEY, data.token);
+          localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+          set({ user: data.user, token: data.token });
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Real token swap failed, applying preview token fallback', e);
+    }
+
+    const personaName = role === 'creator' ? 'Meera Nair' : role === 'reviewer' ? 'Nisha Rao' : 'Arjun Mehta';
     const user: User = {
       id: `preview-${role}`,
-      name: role === 'creator' ? 'Meera Nair' : role === 'reviewer' ? 'Nisha Rao' : 'Arjun Mehta',
+      name: personaName,
       role,
+      email: `${role}@lumenpay.example`,
     };
-    const token = `preview-${role}`;
+    const token = `preview-token-${role}`;
     try {
       localStorage.setItem(TOKEN_KEY, token);
       localStorage.setItem(USER_KEY, JSON.stringify(user));
-    } catch {
-      // ignore
-    }
+    } catch {}
     set({ user, token });
   },
 }));

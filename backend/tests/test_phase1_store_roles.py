@@ -155,6 +155,80 @@ class TestRoleBasedAccessControl:
         assert resp.status_code == 200
         assert resp.json()["status"] == "Changes requested"
 
+    def test_creator_cannot_renew_fact(self):
+        today = datetime.now(timezone.utc).date()
+        resp = client.post(
+            "/api/v1/facts/FACT-11/renew",
+            json={
+                "new_expires_on": (today + timedelta(days=90)).isoformat(),
+                "reason": "Unauthorized creator renewal attempt",
+            },
+            headers=make_auth_header("creator"),
+        )
+        assert resp.status_code == 403
+        assert "requires the 'brand_manager' role" in resp.json()["detail"]
+
+    def test_creator_action_audit_records_creator_identity(self):
+        token = create_access_token(
+            user_id=UUID("55555555-5555-5555-5555-555555555555"),
+            role="creator",
+            name="Priya Sharma",
+            email="priya@example.com",
+        )
+        resp = client.post(
+            "/api/v1/findings/F-101/decision",
+            json={"action": "accept", "reason": "Accurate claim confirmed"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+
+        logs = get_store().list_audit_logs()
+        latest = logs[0]
+        assert latest["who"] == "Priya Sharma"
+        assert latest["role"] == "creator"
+
+    def test_reviewer_action_audit_records_reviewer_identity(self):
+        token = create_access_token(
+            user_id=UUID("66666666-6666-6666-6666-666666666666"),
+            role="reviewer",
+            name="Kabir Sen",
+            email="kabir@example.com",
+        )
+        resp = client.post(
+            "/api/v1/drafts/draft-1/request-changes",
+            json={"reason": "Revise promotional terminology"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+
+        logs = get_store().list_audit_logs()
+        latest = logs[0]
+        assert latest["who"] == "Kabir Sen"
+        assert latest["role"] == "reviewer"
+
+    def test_brand_manager_action_audit_records_brand_manager_identity(self):
+        today = datetime.now(timezone.utc).date()
+        token = create_access_token(
+            user_id=UUID("77777777-7777-7777-7777-777777777777"),
+            role="brand_manager",
+            name="Deepa Nair",
+            email="deepa@example.com",
+        )
+        resp = client.post(
+            "/api/v1/facts/FACT-11/renew",
+            json={
+                "new_expires_on": (today + timedelta(days=90)).isoformat(),
+                "reason": "Q4 campaign extended by governance board",
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+
+        logs = get_store().list_audit_logs()
+        latest = logs[0]
+        assert latest["who"] == "Deepa Nair"
+        assert latest["role"] == "brand_manager"
+
 
 class TestHealthAndSystemStatus:
     def test_health_reports_store_and_llm_status(self, monkeypatch):

@@ -317,7 +317,7 @@ def list_drafts():
 @router.post("/api/v1/drafts", status_code=status.HTTP_201_CREATED)
 def create_draft(
     body: DraftInput,
-    user: Optional[CurrentUser] = Depends(get_optional_current_user),
+    user: CurrentUser = Depends(get_current_user),
 ):
     """Create a new draft."""
     actor = user.name if isinstance(user, CurrentUser) else "Creator"
@@ -532,7 +532,7 @@ def get_findings(draft_id: str):
 def apply_decision(
     finding_id: str,
     body: DecisionInput,
-    user: Optional[CurrentUser] = Depends(get_optional_current_user),
+    user: CurrentUser = Depends(get_current_user),
 ):
     """Apply a human review decision (accept, edit, dismiss)."""
     store = get_store()
@@ -542,7 +542,7 @@ def apply_decision(
         return {"action": body.action, "status": "resolved" if body.action != "dismiss" else "dismissed"}
 
     target_draft_id = target_finding.get("draft_id")
-    actor = user.name if isinstance(user, CurrentUser) else "Meera Nair"
+    actor = user.name if isinstance(user, CurrentUser) else "Creator"
     actor_role = user.role if isinstance(user, CurrentUser) else "creator"
 
     new_status = "dismissed" if body.action == "dismiss" else "resolved"
@@ -612,7 +612,7 @@ def get_versions(draft_id: str):
 def create_version(
     draft_id: str,
     body: VersionInput,
-    user: Optional[CurrentUser] = Depends(get_optional_current_user),
+    user: CurrentUser = Depends(get_current_user),
 ):
     store = get_store()
     draft = store.get_draft(draft_id)
@@ -715,9 +715,9 @@ def get_comments(draft_id: str):
 def add_comment(
     draft_id: str,
     body: CommentInput,
-    user: Optional[CurrentUser] = Depends(get_optional_current_user),
+    user: CurrentUser = Depends(get_current_user),
 ):
-    actor = user.name if isinstance(user, CurrentUser) else "Meera Nair"
+    actor = user.name if isinstance(user, CurrentUser) else "Creator"
     actor_role = user.role if isinstance(user, CurrentUser) else "creator"
     return get_store().add_comment(
         draft_id=draft_id,

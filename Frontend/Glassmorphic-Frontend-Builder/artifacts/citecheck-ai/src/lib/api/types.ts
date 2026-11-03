@@ -1,7 +1,7 @@
 export type Role = 'creator' | 'brand_manager' | 'reviewer';
-export type User = { id: string; name: string; role: Role };
+export type User = { id: string; name: string; role: Role; email?: string; [key: string]: any; };
 export type Guideline = { id: string; title: string; text: string; category?: string };
-export type Fact = { id: string; text: string; source: string; review_date: string; allow_ai: boolean; owner_name?: string; status_override?: string };
+export type Fact = { id: string; text: string; source: string; review_date: string; allow_ai: boolean; owner_name?: string; status_override?: string; expires_on?: string; [key: string]: any };
 export type Term = { id: string; banned: string; preferred: string; allow_ai?: boolean };
 
 export type GateTrace = {

@@ -3,7 +3,7 @@ import { api } from '@/lib/api/endpoints';
 import { toast } from 'sonner';
 
 export const keys = {
-  kit: ['brand-kit'] as const, drafts: ['drafts'] as const,
+  kit: ['brand-kit'] as const, brandKit: ['brand-kit'] as const, drafts: ['drafts'] as const,
   draft: (id: string) => ['draft', id] as const,
   findings: (id: string) => ['findings', id] as const,
   versions: (id: string) => ['versions', id] as const,
