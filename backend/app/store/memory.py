@@ -14,7 +14,10 @@ from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 from app.store.base import BaseStore
-from backend.scripts.seed_demo import compute_audit_hash, generate_seed_data
+try:
+    from backend.scripts.seed_demo import compute_audit_hash, generate_seed_data
+except ModuleNotFoundError:
+    from scripts.seed_demo import compute_audit_hash, generate_seed_data
 
 
 def compute_fact_status(fact: Dict[str, Any], today: Optional[date] = None) -> str:
