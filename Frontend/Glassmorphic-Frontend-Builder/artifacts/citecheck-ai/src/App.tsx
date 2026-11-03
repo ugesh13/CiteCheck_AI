@@ -314,6 +314,23 @@ function AppShell({ children }: { children: ReactNode }) {
   const [more, setMore] = useState(false);
   const [userMenu, setUserMenu] = useState(false);
   const [search, setSearch] = useState('');
+  const [showDock, setShowDock] = useState(true);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const onScroll = () => {
+      const currentY = window.scrollY;
+      if (currentY > lastScrollY.current + 15 && currentY > 80) {
+        setShowDock(false);
+      } else if (currentY < lastScrollY.current - 10) {
+        setShowDock(true);
+      }
+      lastScrollY.current = currentY;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
@@ -469,8 +486,64 @@ function AppShell({ children }: { children: ReactNode }) {
       </aside>
       <main className="min-w-0 flex-1 px-4 pb-48 pt-7 sm:px-7 lg:px-8 lg:pb-52">{children}</main>
     </div>
-    {user && <nav aria-label="Quick navigation" className="dock-shell fixed bottom-5 left-1/2 z-40 hidden -translate-x-1/2 items-center gap-1 rounded-[1.35rem] border border-white/15 bg-slate-950/80 p-2 text-white backdrop-blur-2xl lg:flex">{(visibleNav || []).slice(0, 5).map(({ href, label, icon: Icon }) => <Link key={href} href={href} title={label} aria-label={label} className={`group grid h-12 w-12 place-items-center rounded-2xl transition duration-200 hover:-translate-y-2 hover:scale-[1.18] hover:bg-white/10 ${path === href ? 'bg-teal-300 text-slate-950 shadow-lg shadow-teal-300/15' : 'text-white/70'}`}><Icon size={19} /></Link>)}<Link href="/settings" title="Settings" aria-label="Settings" className="grid h-12 w-12 place-items-center rounded-2xl text-white/70 transition hover:-translate-y-2 hover:scale-[1.18] hover:bg-white/10"><Settings2 size={19} /></Link></nav>}
-    {user && <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border/70 bg-background/85 px-2 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur-2xl lg:hidden">{(visibleNav || []).slice(0, 4).map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={`grid justify-items-center gap-1 py-1 text-[9px] font-bold ${path === href ? 'text-teal-600 dark:text-teal-200' : 'text-muted-foreground'}`}><Icon size={19} /><span>{label.split(' ')[0]}</span></Link>)}<button onClick={() => setMore(true)} className="grid justify-items-center gap-1 py-1 text-[9px] font-bold text-muted-foreground"><MoreHorizontal size={19} />More</button></nav>}
+    {user && (
+      <nav
+        aria-label="Quick navigation"
+        className={`dock-shell fixed bottom-5 left-1/2 z-40 hidden -translate-x-1/2 items-center gap-1 rounded-[1.35rem] border border-white/15 bg-slate-950/90 p-2 text-white backdrop-blur-2xl transition-all duration-300 lg:flex ${
+          showDock ? 'translate-y-0 opacity-100' : 'translate-y-24 opacity-0 pointer-events-none'
+        }`}
+      >
+        {(visibleNav || []).slice(0, 5).map(({ href, label, icon: Icon }) => (
+          <Link
+            key={href}
+            href={href}
+            title={label}
+            aria-label={label}
+            className={`group grid h-12 w-12 place-items-center rounded-2xl transition duration-200 hover:-translate-y-2 hover:scale-[1.18] hover:bg-white/10 ${
+              path === href ? 'bg-teal-300 text-slate-950 shadow-lg shadow-teal-300/15' : 'text-white/80'
+            }`}
+          >
+            <Icon size={19} />
+          </Link>
+        ))}
+        <Link
+          href="/settings"
+          title="Settings"
+          aria-label="Settings"
+          className="grid h-12 w-12 place-items-center rounded-2xl text-white/80 transition hover:-translate-y-2 hover:scale-[1.18] hover:bg-white/10"
+        >
+          <Settings2 size={19} />
+        </Link>
+      </nav>
+    )}
+    {user && (
+      <nav
+        aria-label="Mobile navigation"
+        className={`fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border/70 bg-background/95 px-2 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur-2xl transition-all duration-300 lg:hidden ${
+          showDock ? 'translate-y-0 opacity-100' : 'translate-y-24 opacity-0 pointer-events-none'
+        }`}
+      >
+        {(visibleNav || []).slice(0, 4).map(({ href, label, icon: Icon }) => (
+          <Link
+            key={href}
+            href={href}
+            className={`grid justify-items-center gap-1 py-1 text-xs font-semibold ${
+              path === href ? 'text-teal-600 dark:text-teal-200' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Icon size={19} />
+            <span className="text-xs">{label.split(' ')[0]}</span>
+          </Link>
+        ))}
+        <button
+          onClick={() => setMore(true)}
+          className="grid justify-items-center gap-1 py-1 text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
+        >
+          <MoreHorizontal size={19} />
+          <span className="text-xs">More</span>
+        </button>
+      </nav>
+    )}
   { more && <div className="fixed inset-0 z-50 flex items-end bg-slate-950/55 p-3 backdrop-blur-sm lg:hidden" onClick={() => setMore(false)}><div className="glass w-full rounded-[1.7rem] p-5" onClick={(e) => e.stopPropagation()}><div className="mb-4 flex items-center justify-between"><h3 className="display text-lg font-bold">More in workspace</h3><button onClick={() => setMore(false)} aria-label="Close menu"><X /></button></div><div className="grid grid-cols-2 gap-2">{[...(visibleNav || []).slice(4), { href: '/how-it-works', label: 'How it works', icon: BookOpen }, { href: '/settings', label: 'Settings', icon: Settings2 }, { href: '#logout', label: 'Log out', icon: LogOut, isLogout: true }].map((item: any) => <button key={item.href} onClick={() => { if (item.isLogout) { logout(); toast.success("Signed out successfully"); setPath("/"); } else { go(item.href); } }} className="flex items-center gap-3 rounded-xl border border-border bg-card/60 p-3 text-left text-sm"><item.icon size={16} />{item.label}</button>)}</div></div></div> }
   { palette && <div className="fixed inset-0 z-[60] flex items-start justify-center bg-slate-950/60 px-4 pt-[12vh] backdrop-blur-sm" onClick={() => setPalette(false)}><div className="glass w-full max-w-xl rounded-3xl p-3 shadow-2xl" onClick={(e) => e.stopPropagation()}><div className="flex items-center gap-3 border-b border-border px-3 pb-3"><Search size={18} className="text-muted-foreground" /><input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Jump to a page or draft…" className="h-10 flex-1 bg-transparent text-sm outline-none" data-testid="input-command-search" /><kbd className="rounded border px-2 py-1 font-mono text-[10px]">ESC</kbd></div><div className="p-2">{[...visibleNav, { href: '/how-it-works', label: 'How it works', icon: BookOpen }, { href: '/settings', label: 'Settings', icon: Settings2 }, ...(commandDrafts || []).map((draft) => ({ href: `/drafts/${draft.id}`, label: draft.title, icon: FileText }))].filter((n) => n.label.toLowerCase().includes(search.toLowerCase())).map(({ href, label, icon: Icon }) => <button key={href} onClick={() => go(href)} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm hover:bg-white/10"><Icon size={16} />{label}<ArrowRight size={14} className="ml-auto text-muted-foreground" /></button>)}</div><div className="px-3 pb-2 text-[10px] text-muted-foreground">CiteCheck command menu <span className="float-right">↑↓ to navigate · Esc to close</span></div></div></div> }
   </div >;
@@ -1377,7 +1450,7 @@ function SettingsPage() {
           <h2 className="display mt-2 text-xl font-bold">What leaves this room.</h2>
           <div className="mt-5 grid gap-3">
             {[
-              ['External AI notice', 'Draft text and relevant brand rules are processed with zero retention.'],
+              ['External AI notice', 'When an external AI provider is configured, draft text and relevant brand rules are sent to that provider; retention is governed by the provider’s terms (Google AI Terms of Service). When no provider is configured, no external network calls are made.'],
               ['Synthetic demo content', 'Lumen Pay examples are fictional. No real customer PII is ever used.'],
               ['Role-based access', 'Creator, Reviewer, and Brand Manager boundaries are enforced.'],
               ['Decision audit', 'Accept, edit, dismiss, and approvals are logged permanently.'],

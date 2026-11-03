@@ -233,24 +233,30 @@ export function VerifierLabPage() {
           {/* Summary Metric Cards */}
           <div className="grid gap-4 sm:grid-cols-4">
             <div className="glass rounded-2xl p-4">
-              <span className="mono text-[10px] text-muted-foreground uppercase">Total Adversarial Cases</span>
+              <span className="mono text-xs text-muted-foreground uppercase font-bold">Total Adversarial Cases</span>
               <div className="mt-2 text-2xl font-extrabold text-foreground">{summary.total_cases}</div>
-              <span className="text-[10px] text-muted-foreground">Comprehensive stress tests</span>
+              <span className="text-xs text-muted-foreground">Team-authored test matrix</span>
             </div>
             <div className="glass rounded-2xl p-4">
-              <span className="mono text-[10px] text-teal-600 dark:text-teal-300 uppercase font-bold">Passed Verifier Assertions</span>
+              <span className="mono text-xs text-teal-600 dark:text-teal-300 uppercase font-bold">Passed Verifier Assertions</span>
               <div className="mt-2 text-2xl font-extrabold text-teal-600 dark:text-teal-300">{summary.passed} / {summary.total_cases}</div>
-              <span className="text-[10px] text-teal-600/80 dark:text-teal-300/80">100% Deterministic match</span>
+              <span className="text-xs text-teal-700 dark:text-teal-300">
+                {summary.passed === summary.total_cases ? `${summary.passed} of ${summary.total_cases} team-authored cases behaved as expected` : `${summary.total_cases - summary.passed} assertions diverged`}
+              </span>
             </div>
             <div className="glass rounded-2xl p-4">
-              <span className="mono text-[10px] text-rose-500 uppercase font-bold">Failed / Vulnerable</span>
+              <span className="mono text-xs text-rose-500 uppercase font-bold">Failed / Divergent</span>
               <div className="mt-2 text-2xl font-extrabold text-rose-500">{summary.failed}</div>
-              <span className="text-[10px] text-muted-foreground">Zero silent leaks</span>
+              <span className="text-xs text-muted-foreground">
+                {summary.failed === 0 ? 'No test failures in local run' : `${summary.failed} cases require attention`}
+              </span>
             </div>
             <div className="glass rounded-2xl p-4 border-teal-300/30 bg-teal-300/[.05]">
-              <span className="mono text-[10px] text-teal-600 dark:text-teal-300 uppercase font-bold">Resilience Verdict</span>
-              <div className="mt-2 text-sm font-bold text-foreground">Fail-Closed & Grounded</div>
-              <span className="text-[10px] text-muted-foreground">Prompt-injection safe</span>
+              <span className="mono text-xs text-teal-600 dark:text-teal-300 uppercase font-bold">Resilience Verdict</span>
+              <div className="mt-2 text-sm font-bold text-foreground">
+                {summary.failed === 0 ? 'Assertions Satisfied' : 'Review Required'}
+              </div>
+              <span className="text-xs text-muted-foreground">Cases written by the team; not an independent security audit</span>
             </div>
           </div>
 
@@ -263,8 +269,8 @@ export function VerifierLabPage() {
                   Executed against the real Five-Gate pipeline on each request. Verifies schema, database matching, quotes, number guardrails, and freshness.
                 </p>
               </div>
-              <span className="rounded-full border border-teal-400/30 bg-teal-400/10 px-3 py-1 mono text-[10px] font-bold text-teal-600 dark:text-teal-300">
-                100% Pass Rate
+              <span className="rounded-full border border-teal-400/30 bg-teal-400/10 px-3 py-1 mono text-xs font-bold text-teal-600 dark:text-teal-300">
+                {summary.passed} of {summary.total_cases} passed in run
               </span>
             </div>
 
