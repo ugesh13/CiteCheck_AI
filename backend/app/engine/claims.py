@@ -27,6 +27,7 @@ _STAT_PATTERN = re.compile(
     r"(?:"
     r"[$₹€£]\s*\d+(?:,\d{3})*(?:\.\d+)?|\b\d+(?:,\d{3})*(?:\.\d+)?\s*(?:INR|USD|EUR|GBP|%)\b|"
     r"\b\d+(?:\.\d+)?%|\b\d+(?:\.\d+)?\s*percent\b|"
+    r"\b\d+[- ](?:day|business day|month|year)s?\b|"
     r"\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b"
     r")",
     re.IGNORECASE,
@@ -34,19 +35,21 @@ _STAT_PATTERN = re.compile(
 
 _SUPERLATIVES = [
     (r"\bmost trusted\b", "most trusted", "GUIDE-01", "FACT-07", "a wallet built for simple, everyday payments"),
-    (r"\b#1\b|\bnumber one\b|\bno\.?\s*1\b", "#1", "GUIDE-01", "FACT-07", "leading"),
-    (r"\bbest (?:wallet|app|platform|service)\b", "best", "GUIDE-01", "FACT-07", "reliable"),
+    (r"(?:(?<=[\s\(\[])|^)#1\b|\bnumber one\b|\bno\.?\s*1\b", "#1", "GUIDE-01", "FACT-07", "leading"),
+    (r"\bbest\b", "best", "GUIDE-01", "FACT-07", "reliable"),
+    (r"\brisk-free\b", "risk-free", "GUIDE-01", None, "reliable and audited"),
+    (r"\brevolutionary\b", "revolutionary", "GUIDE-01", None, "modern"),
     (r"\bzero fees forever\b", "zero fees forever", "GUIDE-09", "FACT-03", "fees reviewed quarterly"),
     (r"\bzero fees\b", "zero fees", "GUIDE-09", "FACT-03", "transparent pricing reviewed quarterly"),
     (r"\bforever\b", "forever", "GUIDE-09", "FACT-03", "for the current term"),
     (r"\bguaranteed(?:\s+unlimited)?\b", "guaranteed", "GUIDE-02", "FACT-07", "designed for high reliability"),
-    (r"\b100% (?:secure|uptime|error-free|guaranteed)\b", "100%", "GUIDE-01", "FACT-09", "99.9% uptime backed by TLS 1.3 encryption"),
+    (r"\b100% (?:secure|uptime|error-free|guaranteed|loss)\b|\b100%\b", "100%", "GUIDE-01", "FACT-09", "99.9% uptime backed by TLS 1.3 encryption"),
     (r"\balways\b", "always", "GUIDE-02", None, "consistently"),
     (r"\bnever\b", "never", "GUIDE-02", None, "rarely"),
 ]
 
 _PRESSURE_TACTICS = [
-    (r"\b(?:act now|urgent|hurry|don't miss out|before it's too late|last chance|limited time only)\b", "Urgent / pressure wording violates plainspoken confidence policy", "GUIDE-07", "Explore features at your convenience"),
+    (r"\b(?:act now|urgent|hurry|don't miss out|before it's too late|last chance|limited time(?: only)?)\b", "Urgent / pressure wording violates plainspoken confidence policy", "GUIDE-07", "Explore features at your convenience"),
     (r"\b(?:penalty|risk of suspension|immediate action required)\b", "Fear-based tactic detected", "GUIDE-07", "Please verify your account details"),
 ]
 
@@ -66,7 +69,7 @@ def find_overlapping_fact(excerpt: str, facts: List[Dict[str, Any]]) -> Optional
     best_score = 0
 
     for f in facts:
-        f_text = f.get("text") or f.get("statement", "")
+        f_text = f.get("fact_text") or f.get("text") or f.get("statement", "")
         f_tokens = _extract_tokens(f_text)
         overlap = len(exc_tokens.intersection(f_tokens))
         if overlap > best_score and overlap >= 2:
@@ -139,7 +142,7 @@ def detect_claims_and_evidence(
         if not matching_facts:
             # Check partial match (e.g. '15%' in 'cashback up to 15%')
             for f in facts:
-                f_stmt = (f.get("text") or f.get("statement", "")).lower()
+                f_stmt = (f.get("fact_text") or f.get("text") or f.get("statement", "")).lower()
                 if stat_clean in f_stmt:
                     matching_facts.append(f)
 
@@ -220,7 +223,7 @@ def detect_claims_and_evidence(
     # Rule: "Use Lumen Pay on first mention; Lumen thereafter."
     # If the first mention of the product in the text is "Lumen" instead of "Lumen Pay", flag it!
     lumen_pay_match = re.search(r"\bLumen Pay\b", draft_text)
-    lumen_solo_match = re.search(r"\bLumen\b(?!\s+Pay\b)", draft_text)
+    lumen_solo_match = re.search(r"\b(?:Lumen|Pay)\b(?!\s+Pay\b)", draft_text)
 
     if lumen_solo_match:
         if not lumen_pay_match or lumen_solo_match.start() < lumen_pay_match.start():
