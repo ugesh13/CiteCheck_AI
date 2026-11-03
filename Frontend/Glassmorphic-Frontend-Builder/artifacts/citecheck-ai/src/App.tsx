@@ -26,6 +26,7 @@ import { VerifierLabPage } from '@/pages/verifier-lab';
 import { BrandKitFacts } from '@/components/brand-kit-facts';
 import { NotificationCenter } from '@/components/notification-center';
 import { BrandKitPage } from '@/pages/brand-kit';
+import { GuidedTour } from '@/components/guided-tour';
 import { GapRadarPage } from '@/pages/gap-radar';
 import { AuditPage } from '@/pages/audit';
 
@@ -106,116 +107,7 @@ function ErrorFallback({ error, resetError }: { error: Error; resetError: () => 
   return <Glass className="m-4 p-7"><Eyebrow>Something interrupted this view</Eyebrow><h2 className="display mt-2 text-xl font-bold">The work is still safe.</h2><p className="mt-2 text-sm text-muted-foreground">{error.message}</p><Button className="mt-5" onClick={resetError}>Try again</Button></Glass>;
 }
 
-function QuickStartTour() {
-  const [open, setOpen] = useState(() => {
-    try {
-      return localStorage.getItem('citecheck_dismiss_tour') !== 'true';
-    } catch {
-      return true;
-    }
-  });
-  const user = useSession((s) => s.user);
-  const demoRole = useSession((s) => s.demoRole);
-
-  if (!open) return null;
-  const dismiss = () => {
-    setOpen(false);
-    try {
-      localStorage.setItem('citecheck_dismiss_tour', 'true');
-    } catch {}
-  };
-
-  return (
-    <Glass className="mb-5 border-teal-300/30 bg-teal-300/[.06] p-4 sm:p-5 relative overflow-hidden">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3 w-full">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-teal-300/20 text-teal-600 dark:text-teal-200">
-            <Sparkles size={20} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <span className="mono text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-200">
-                  Judges' Evaluation Guide
-                </span>
-                <Tag tone="teal">Role-by-Role Script</Tag>
-              </div>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                Active account: <b className="text-foreground">{user?.name || 'User'} ({roleName(user?.role)})</b>
-              </div>
-            </div>
-            <h3 className="display mt-1 text-base font-bold text-foreground sm:text-lg">
-              Follow this 3-step script to test the complete brand governance loop:
-            </h3>
-
-            <div className="mt-3.5 grid gap-3 sm:grid-cols-3">
-              <div className={`rounded-2xl border p-4 transition ${user?.role === 'creator' ? 'border-teal-400 bg-teal-400/10 ring-1 ring-teal-400/30' : 'border-border/70 bg-background/50'}`}>
-                <div className="flex items-center justify-between">
-                  <span className="mono text-[10px] font-bold text-teal-600 dark:text-teal-300">1. CREATOR</span>
-                  {user?.role === 'creator' && <Tag tone="teal">Active</Tag>}
-                </div>
-                <b className="mt-1.5 block text-sm font-bold text-foreground">Meera Nair (Marketing Copy)</b>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  Open <b>app-store-listing.md</b>, review quotes, and dismiss a finding with a reason. Watch it feed Gap Radar.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => { demoRole('creator'); toast.success('Switched to Meera (Creator)'); }}
-                  className={`mt-3 inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${user?.role === 'creator' ? 'bg-teal-300 text-slate-950 shadow-sm' : 'bg-white/10 hover:bg-white/15 text-foreground'}`}
-                >
-                  <UserCheck size={14} /> {user?.role === 'creator' ? 'Active as Meera' : 'Switch to Meera'}
-                </button>
-              </div>
-
-              <div className={`rounded-2xl border p-4 transition ${user?.role === 'reviewer' ? 'border-violet-400 bg-violet-400/10 ring-1 ring-violet-400/30' : 'border-border/70 bg-background/50'}`}>
-                <div className="flex items-center justify-between">
-                  <span className="mono text-[10px] font-bold text-violet-500">2. REVIEWER</span>
-                  {user?.role === 'reviewer' && <Tag tone="violet">Active</Tag>}
-                </div>
-                <b className="mt-1.5 block text-sm font-bold text-foreground">Nisha Rao (Governance)</b>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  Go to <b>Review queue</b>. Inspect <b>launch-email.md v3</b> version diff and verify the <b>FACT-11 Expired Fact</b> alert.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => { demoRole('reviewer'); toast.success('Switched to Nisha (Reviewer)'); }}
-                  className={`mt-3 inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${user?.role === 'reviewer' ? 'bg-violet-400 text-slate-950 shadow-sm' : 'bg-white/10 hover:bg-white/15 text-foreground'}`}
-                >
-                  <UserCheck size={14} /> {user?.role === 'reviewer' ? 'Active as Nisha' : 'Switch to Nisha'}
-                </button>
-              </div>
-
-              <div className={`rounded-2xl border p-4 transition ${user?.role === 'brand_manager' ? 'border-amber-400 bg-amber-400/10 ring-1 ring-amber-400/30' : 'border-border/70 bg-background/50'}`}>
-                <div className="flex items-center justify-between">
-                  <span className="mono text-[10px] font-bold text-amber-600 dark:text-amber-300">3. BRAND MANAGER</span>
-                  {user?.role === 'brand_manager' && <Tag tone="amber">Active</Tag>}
-                </div>
-                <b className="mt-1.5 block text-sm font-bold text-foreground">Arjun Mehta (Brand Owner)</b>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  Inspect <b>Gap Radar</b> to diagnose unclear guidelines, then extend <b>FACT-11</b> review date in <b>Brand kit</b>.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => { demoRole('brand_manager'); toast.success('Switched to Arjun (Brand Manager)'); }}
-                  className={`mt-3 inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${user?.role === 'brand_manager' ? 'bg-amber-400 text-slate-950 shadow-sm' : 'bg-white/10 hover:bg-white/15 text-foreground'}`}
-                >
-                  <UserCheck size={14} /> {user?.role === 'brand_manager' ? 'Active as Arjun' : 'Switch to Arjun'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <button
-          onClick={dismiss}
-          aria-label="Dismiss tour"
-          className="rounded-lg p-1.5 text-muted-foreground hover:bg-white/10 shrink-0"
-        >
-          <X size={16} />
-        </button>
-      </div>
-    </Glass>
-  );
-}
+// GuidedTour is imported from @/components/guided-tour
 
 function DocxUploadModal({
   open,
@@ -444,6 +336,27 @@ function AppShell({ children }: { children: ReactNode }) {
           <button onClick={() => setPalette(true)} className="flex items-center gap-2 rounded-xl border border-border bg-card/50 px-3 py-2 text-xs text-muted-foreground hover:bg-card" aria-label="Open command palette"><Search size={14} /> Jump to <kbd className="rounded border px-1.5 py-0.5 font-mono text-[9px]">⌘ K</kbd></button>
           <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="rounded-xl border border-border bg-card/50 p-2.5 text-muted-foreground hover:text-foreground" aria-label="Toggle theme" data-testid="button-theme-toggle">{theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}</button>
           <NotificationCenter />
+          <div className="hidden items-center gap-1 rounded-xl border border-border/70 bg-card/50 p-1 xl:flex">
+            {[
+              ['creator', 'Meera (Creator)', 'bg-teal-300 text-slate-950 font-bold shadow-sm'],
+              ['reviewer', 'Nisha (Reviewer)', 'bg-violet-400 text-slate-950 font-bold shadow-sm'],
+              ['brand_manager', 'Arjun (Manager)', 'bg-amber-400 text-slate-950 font-bold shadow-sm'],
+            ].map(([r, label, activeClass]) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => {
+                  demoRole(r as any);
+                  toast.success(`Switched role to ${label}`);
+                }}
+                className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition cursor-pointer ${
+                  user?.role === r ? activeClass : 'text-muted-foreground hover:bg-white/5'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           {user ? (
             <div className="relative">
               <button
@@ -472,6 +385,17 @@ function AppShell({ children }: { children: ReactNode }) {
                       <p className="text-[10px] text-muted-foreground">{roleName(user.role)}</p>
                     </div>
                     <div className="p-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserMenu(false);
+                          localStorage.removeItem('citecheck_dismiss_tour');
+                          window.location.reload();
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-card hover:text-foreground transition cursor-pointer"
+                      >
+                        <Sparkles size={15} /> Restart Guided Tour
+                      </button>
                       <button
                         type="button"
                         onClick={() => {
@@ -775,7 +699,7 @@ function LoginPage() {
 
       return <div className="page-enter">
         <DocxUploadModal open={docxOpen} onClose={() => setDocxOpen(false)} onCreated={(id) => setPath(`/drafts/${id}`)} />
-        <QuickStartTour />
+        <GuidedTour />
         {expiredFacts.length > 0 && (
           <Glass className="mb-4 flex flex-wrap items-center justify-between gap-3 border-rose-300/30 bg-rose-300/[.06] p-4">
             <div className="flex items-center gap-3">
