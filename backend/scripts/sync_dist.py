@@ -34,3 +34,4 @@ if os.path.exists(src_index):
     shutil.copy2(src_index, root_index)
 
 print(f"Successfully synced dist/public -> public/ and root index.html")
+

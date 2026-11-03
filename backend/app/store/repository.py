@@ -11,3 +11,4 @@ from app.store.base import BaseStore
 from app.store.provider import get_store, set_store, reset_store
 
 __all__ = ["BaseStore", "get_store", "set_store", "reset_store"]
+

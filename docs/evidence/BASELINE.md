@@ -128,3 +128,4 @@ Proceeding to **Phase 1 — One Identity Model**:
 - Remove all fallback strings ("Meera Nair").
 - Implement real token-swap persona switcher where role and name are derived solely from the server-issued JWT.
 - Fix frontend header to display the authenticated user's actual name and role.
+
