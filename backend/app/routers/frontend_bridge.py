@@ -51,11 +51,11 @@ class LoginRequest(BaseModel):
 
 class DraftInput(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
-    text: str = Field("", max_length=100000)
+    text: str = Field("", max_length=500000)
 
 
 class VersionInput(BaseModel):
-    text: Optional[str] = Field(None, max_length=100000)
+    text: Optional[str] = Field(None, max_length=500000)
 
 
 class DecisionInput(BaseModel):

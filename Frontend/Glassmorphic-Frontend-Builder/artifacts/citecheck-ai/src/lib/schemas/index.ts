@@ -1,7 +1,19 @@
 import { z } from 'zod';
 
 export const loginSchema = z.object({ email: z.string().email('Enter a valid email'), password: z.string().min(6, 'Use at least 6 characters'), role: z.enum(['creator', 'brand_manager', 'reviewer']) });
-export const draftSchema = z.object({ title: z.string().min(1, 'Add a draft name').max(120), text: z.string().min(20, 'Add at least 20 characters').max(20000, 'Keep drafts under 20,000 characters'), acknowledge: z.literal(true, { errorMap: () => ({ message: 'Please acknowledge the external AI notice.' }) }) });
+export const draftSchema = z.object({
+  title: z.string().min(1, 'Add a draft name').max(200),
+  text: z.string()
+    .min(1, 'Add draft content')
+    .refine(
+      (val) => {
+        const words = val.trim().split(/\s+/).filter(Boolean).length;
+        return words <= 75000;
+      },
+      { message: 'Keep drafts under 50,000 words' }
+    ),
+  acknowledge: z.literal(true, { errorMap: () => ({ message: 'Please acknowledge the external AI notice.' }) })
+});
 export const commentSchema = z.object({ text: z.string().min(2, 'Write a comment').max(1000) });
 export const dismissSchema = z.object({ reason: z.string().min(10, 'Explain the reason in at least 10 characters').max(500) });
 export const kitSchema = z.object({ title: z.string().min(2).optional(), text: z.string().min(3, 'Add a description or approved wording'), source: z.string().optional(), review_date: z.string().optional(), allow_ai: z.boolean().optional(), banned: z.string().optional(), preferred: z.string().optional() });

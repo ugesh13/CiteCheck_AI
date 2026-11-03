@@ -47,13 +47,13 @@ def make_auth_header(role: str = "creator") -> dict[str, str]:
 
 def test_giant_draft_rejected_with_422():
     headers = make_auth_header("creator")
-    # Exceeds max_length=100000
-    huge_text = "A" * 120000
+    # Exceeds max_length=500000
+    huge_text = "A" * 600000
     payload = {"title": "Giant Draft Attack", "text": huge_text}
     res = client.post("/api/v1/drafts", json=payload, headers=headers)
     assert res.status_code == 422
     data = res.json()
-    assert "VALIDATION_ERROR" in data.get("code", "") or "at most 100000 characters" in data.get("detail", "")
+    assert "VALIDATION_ERROR" in data.get("code", "") or "at most 500000 characters" in data.get("detail", "")
 
 
 def test_oversized_title_rejected_with_422():
