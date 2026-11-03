@@ -47,6 +47,8 @@ class DraftStatus(str, Enum):
 class VerificationStatus(str, Enum):
     verified = "verified"
     needs_review = "needs_review"
+    human_review_required = "human_review_required"
+    blocked_expired_fact = "blocked_expired_fact"
     dropped = "dropped"
 
 
@@ -95,6 +97,8 @@ class CandidateFinding(BaseModel):
     cited_fact_code: Optional[str] = None
     cited_guideline_code: Optional[str] = None
     suggested_fix: Optional[str] = None
+    confidence: float = Field(default=0.95, ge=0.0, le=1.0)
+    source: str = Field(default="rules")
 
 
 # ─── Finding Schemas ─────────────────────────────────────────────────────────

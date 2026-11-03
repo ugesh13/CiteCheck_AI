@@ -28,7 +28,10 @@ from app.core.security import (
     get_optional_current_user,
     require_role,
 )
+from app.engine.claims import detect_claims_and_evidence
+from app.engine.llm_reviewer import run_llm_review
 from app.engine.rules import run_rules_engine
+from app.engine.selftest import execute_selftest_suite
 from app.engine.verifier import run_five_gate_pipeline
 from app.store.memory import compute_fact_status
 from app.store.provider import get_store
@@ -78,6 +81,11 @@ class RenewFactInput(BaseModel):
 
 class ArchiveFactInput(BaseModel):
     reason: str = "Deactivated by brand governance"
+
+
+class VerifierTryInput(BaseModel):
+    draft_text: str = Field(..., min_length=1)
+    candidate: Dict[str, Any]
 
 
 # ─── 1. Authentication & Identity ───────────────────────────────────────────
@@ -379,63 +387,33 @@ def run_review(
         for g in guidelines_raw
     }
 
-    # 1. Run deterministic rules engine
-    raw_candidates = run_rules_engine(draft_text, approved_terms, guidelines)
+    # 1. Run deterministic rules engine (terminology & readability)
+    rules_candidates = run_rules_engine(draft_text, approved_terms, guidelines)
 
-    # 2. Run 5-Gate Evidence Verifier pipeline
+    # 2. Run deterministic claim & evidence detector
+    claims_candidates = detect_claims_and_evidence(draft_text, brand_kit)
+
+    # 3. Run optional LLM reviewer
+    llm_candidates, ai_status, ai_reason = run_llm_review(draft_text, brand_kit)
+
+    raw_candidates = rules_candidates + claims_candidates + llm_candidates
+
+    # 4. Run 5-Gate Evidence Verifier pipeline
     verified_findings, stats = run_five_gate_pipeline(
         raw_candidates, draft_text, facts_by_code, guidelines_by_code
     )
 
     # Format findings for frontend
-    formatted_findings: List[Dict[str, Any]] = []
-    for idx, vf in enumerate(verified_findings):
-        match = re.search(re.escape(vf.exact_excerpt), draft_text, re.IGNORECASE)
-        start = match.start() if match else 0
-        end = match.end() if match else start + len(vf.exact_excerpt)
+    formatted_findings: List[Dict[str, Any]] = [
+        vf.to_frontend_dict(f"F-{draft_id}-{idx + 1}", draft_id)
+        for idx, vf in enumerate(verified_findings)
+    ]
 
-        # Check if cited fact is expired
-        source_id = str(vf.cited_fact_id or vf.cited_guideline_id or "GUIDE-01")
-        is_blocked_expired = False
-        if source_id in facts_by_code:
-            fact_data = facts_by_code[source_id]
-            if compute_fact_status(fact_data) == "Expired":
-                is_blocked_expired = True
+    real_dropped = stats.get("dropped_candidates", [])
 
-        finding_status = "blocked_expired_fact" if is_blocked_expired else "open"
-
-        # Construct trace
-        trace = [
-            {"gate": 1, "name": "Schema Validation", "result": "passed", "message": "Pydantic candidate format validated", "evidence": "Schema v2"},
-            {"gate": 2, "name": "Source Exists", "result": "passed", "message": f"Source {source_id} verified in active Brand Kit", "evidence": source_id},
-            {"gate": 3, "name": "Exact Quote", "result": "passed", "message": f"Quote verbatim at chars {start}–{end}", "evidence": f"'{vf.exact_excerpt}'"},
-            {"gate": 4, "name": "Fix Preserves Facts", "result": "warning" if vf.is_intent_guarded else "passed", "message": "Fix preserves numbers and entities" if not vf.is_intent_guarded else "Fix modifies numbers/entities — human verification required", "evidence": "Guarded" if vf.is_intent_guarded else "Preserved"},
-            {"gate": 5, "name": "Freshness & Confidence", "result": "blocked_expired_fact" if is_blocked_expired else "passed", "message": f"Fact {source_id} is EXPIRED. Approval blocked." if is_blocked_expired else f"Confidence verified", "evidence": "Expired" if is_blocked_expired else "Valid"},
-        ]
-
-        formatted_findings.append({
-            "id": f"F-{draft_id}-{idx + 1}",
-            "draft_id": draft_id,
-            "version_number": draft.get("version", 1),
-            "excerpt": vf.exact_excerpt,
-            "start": start,
-            "end": end,
-            "type": vf.category.value.capitalize(),
-            "category": vf.category.value,
-            "severity": "high" if is_blocked_expired else vf.severity.value,
-            "source": "rules",
-            "source_ref_id": source_id,
-            "reason": vf.reason,
-            "suggested_fix": vf.suggested_fix or vf.exact_excerpt,
-            "fix_needs_human": vf.is_intent_guarded or getattr(vf, "verification_status", None) == "needs_review",
-            "confidence": 0.95,
-            "status": finding_status,
-            "paragraph_ref": "p-1",
-            "verification_trace": trace,
-        })
-
-    # Save findings in store
+    # Save findings and dropped candidates in store
     store.save_findings_for_version(draft_id, draft.get("version", 1), formatted_findings)
+    store.record_dropped_candidates(draft_id, draft.get("version", 1), real_dropped)
     store.update_draft(draft_id, {"status": "In review", "findings_count": len(formatted_findings)})
 
     # Log audit
@@ -443,36 +421,94 @@ def run_review(
     store.append_audit_log(
         who=actor,
         role=user.role if isinstance(user, CurrentUser) else "reviewer",
-        action=f"Executed verification pipeline: {len(formatted_findings)} findings",
+        action=f"Executed verification pipeline: {len(formatted_findings)} findings ({len(real_dropped)} dropped)",
         target=f"{draft['title']} · v{draft.get('version', 1)}",
         reason="Automated 5-Gate evidence verification run",
-        details=f"{len(formatted_findings)} verified findings",
+        details=f"Candidates: {len(raw_candidates)} | Verified: {len(formatted_findings)} | Dropped: {len(real_dropped)}",
         draft_id=draft_id,
     )
 
-    dropped = store.get_dropped_candidates(draft_id)
-    if not dropped and stats.get("dropped", 0) > 0:
-        dropped = [
-            {
-                "id": f"drop-{draft_id}-1",
-                "candidate": "Candidate (Gate check)",
-                "failed_gate": 2,
-                "reason": "Unverified assertion without approved citation in brand kit",
-                "raw": {"excerpt": "unverified claim"},
-            }
-        ]
-
     return {
         "findings": formatted_findings,
-        "dropped": dropped,
+        "dropped": real_dropped,
         "summary": {
             "candidates": len(raw_candidates),
             "verified": len(formatted_findings),
-            "dropped": len(dropped),
-            "blocked_expired": sum(1 for f in formatted_findings if f["status"] == "blocked_expired_fact"),
+            "needs_review": stats.get("needs_review", 0),
+            "human_review_required": stats.get("human_review_required", 0),
+            "blocked_expired": stats.get("blocked_expired_fact", 0),
+            "dropped": len(real_dropped),
+            "dropped_by_gate": stats.get("dropped_by_gate", {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}),
         },
-        "ai_review_status": "rules-only",
+        "ai_review_status": ai_status,
+        "ai_review_reason": ai_reason,
     }
+
+
+@router.get("/api/verifier/selftest")
+@router.get("/api/v1/verifier/selftest")
+def run_verifier_selftest():
+    """
+    Executes built-in 12-case adversarial test suite against the real 5-Gate pipeline.
+    Tests hallucinated IDs, unsupported statistics, capitalization tamper, metric modifications, etc.
+    """
+    return execute_selftest_suite()
+
+
+@router.post("/api/verifier/try")
+@router.post("/api/v1/verifier/try")
+def try_verifier_candidate(body: VerifierTryInput):
+    """
+    Interactive 'Try to fool the verifier' sandbox.
+    Evaluates a candidate finding against the real pipeline without persisting.
+    """
+    store = get_store()
+    brand_kit = store.get_brand_kit()
+    facts_raw = brand_kit["facts"]
+    guidelines_raw = brand_kit["guidelines"]
+
+    facts_by_code = {
+        f["id"]: {
+            "statement": f["text"],
+            "source_document": f.get("source", ""),
+            "review_date": f.get("expires_on") or f.get("review_date", ""),
+            "expires_on": f.get("expires_on") or f.get("review_date", ""),
+            "is_active": f.get("is_active", True),
+        }
+        for f in facts_raw
+    }
+    guidelines_by_code = {
+        g["id"]: {"rule_description": g["text"], "title": g["title"]}
+        for g in guidelines_raw
+    }
+
+    verified, stats = run_five_gate_pipeline(
+        [body.candidate],
+        body.draft_text,
+        facts_by_code,
+        guidelines_by_code,
+    )
+
+    if verified:
+        vf = verified[0]
+        return {
+            "outcome": vf.verification_status.value,
+            "passed": True,
+            "verification_trace": vf.verification_trace,
+            "finding": vf.to_frontend_dict("sandbox-1", "sandbox-draft"),
+        }
+    else:
+        dropped_list = stats.get("dropped_candidates", [])
+        drop_info = dropped_list[0] if dropped_list else {}
+        return {
+            "outcome": "dropped",
+            "passed": False,
+            "failed_gate": drop_info.get("failed_gate", 1),
+            "reason": drop_info.get("reason", "Candidate failed evidence verification gates."),
+            "verification_trace": [
+                {"gate": drop_info.get("failed_gate", 1), "name": f"Gate {drop_info.get('failed_gate', 1)}", "result": "failed", "message": drop_info.get("reason", "")}
+            ],
+        }
 
 
 @router.get("/api/drafts/{draft_id}/findings")
