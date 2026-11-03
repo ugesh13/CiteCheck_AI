@@ -231,6 +231,7 @@ function DocxUploadModal({
     char_count: number;
     word_count: number;
     paragraph_count: number;
+    heading_count?: number;
     table_count: number;
   } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -249,8 +250,8 @@ function DocxUploadModal({
       toast.error('CiteCheck accepts .docx, .md, and .txt files.');
       return;
     }
-    if (f.size > 5 * 1024 * 1024) {
-      toast.error('File size exceeds the 5 MB limit. Please choose a smaller document.');
+    if (f.size > 4 * 1024 * 1024) {
+      toast.error('File size exceeds the 4 MB limit (Vercel serverless budget). Please choose a smaller document.');
       return;
     }
     if (f.size === 0) {
@@ -322,7 +323,7 @@ function DocxUploadModal({
           </button>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          Extracts body copy, bulleted lists, section headers, footers, and structured data tables. Limit: 5 MB.
+          Extracts body copy, bulleted lists, section headers, footers, and structured data tables. Limit: 4 MB (Vercel budget).
         </p>
 
         {!extracted ? (
@@ -353,7 +354,7 @@ function DocxUploadModal({
               />
             </label>
             <div className="mt-4 flex flex-wrap justify-center gap-2 text-[10px] text-muted-foreground">
-              <Tag tone="teal">.docx / .md / .txt (≤ 5MB)</Tag>
+              <Tag tone="teal">.docx / .md / .txt (≤ 4MB)</Tag>
               <Tag tone="violet">Tables parsed</Tag>
               <Tag tone="neutral">No passwords</Tag>
             </div>
@@ -368,7 +369,7 @@ function DocxUploadModal({
                 <div>
                   <b className="text-xs text-foreground">{extracted.filename}</b>
                   <span className="block text-[10px] text-muted-foreground">
-                    {extracted.word_count} words · {extracted.paragraph_count} paragraphs {extracted.table_count > 0 ? `· ${extracted.table_count} tables` : ''}
+                    {extracted.word_count} words {extracted.heading_count ? `· ${extracted.heading_count} headings ` : ''}· {extracted.paragraph_count} paragraphs {extracted.table_count > 0 ? `· ${extracted.table_count} tables` : ''}
                   </span>
                 </div>
               </div>
@@ -760,27 +761,35 @@ function LoginPage() {
 
       function Dashboard() {
   const {data, isLoading, isError, error, refetch} = useDrafts();
+  const { data: brandKitData } = useBrandKit();
   const draftsList = Array.isArray(data) ? data : [];
   const openFindingCount = draftsList.reduce((sum, item) => sum + (item.findings_count || 0), 0);
   const statusCount = (status: string) => draftsList.filter((d) => d.status.toLowerCase() === status.toLowerCase()).length;
   const user = useSession((s) => s.user);
   const [docxOpen, setDocxOpen] = useState(false);
   const [, setPath] = useLocation();
+  const factsList = brandKitData?.facts || [];
+  const expiredFacts = factsList.filter((f) => getFactExpiry(f.review_date).status === 'expired');
+
       return <div className="page-enter">
         <DocxUploadModal open={docxOpen} onClose={() => setDocxOpen(false)} onCreated={(id) => setPath(`/drafts/${id}`)} />
         <QuickStartTour />
-        <Glass className="mb-4 flex flex-wrap items-center justify-between gap-3 border-amber-300/30 bg-amber-300/[.06] p-4">
-          <div className="flex items-center gap-3">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-400/20 text-amber-600 dark:text-amber-200">
-              <ShieldAlert size={18} />
-            </span>
-            <div>
-              <b className="text-xs text-foreground">Fact Expiry Radar · 2 claims require human confirmation</b>
-              <p className="mt-0.5 text-[10px] text-muted-foreground">FACT-03 (Pricing review) and FACT-11 (Launch cashback) review dates have passed. Evidence gates require human approval for expired claims.</p>
+        {expiredFacts.length > 0 && (
+          <Glass className="mb-4 flex flex-wrap items-center justify-between gap-3 border-rose-300/30 bg-rose-300/[.06] p-4">
+            <div className="flex items-center gap-3">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-rose-400/20 text-rose-600 dark:text-rose-200">
+                <ShieldAlert size={18} />
+              </span>
+              <div>
+                <b className="text-xs text-foreground">Fact Expiry Radar · {expiredFacts.length} {expiredFacts.length === 1 ? 'claim requires' : 'claims require'} human confirmation</b>
+                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                  {expiredFacts.map((f) => `${f.code} (${f.fact_text.slice(0, 32)}…)`).join(' and ')} review {expiredFacts.length === 1 ? 'date has' : 'dates have'} passed. Evidence gates require human approval for expired claims.
+                </p>
+              </div>
             </div>
-          </div>
-          <Link href="/brand-kit" className="text-xs font-bold text-teal-600 dark:text-teal-200 hover:underline shrink-0">Inspect Brand Kit →</Link>
-        </Glass>
+            <Link href="/brand-kit" className="text-xs font-bold text-rose-600 dark:text-rose-200 hover:underline shrink-0">Inspect Brand Kit →</Link>
+          </Glass>
+        )}
         <PageHead eyebrow={`${roleName(user?.role)} workspace`} title="Good work starts with a source." sub="A live view of drafts, decisions, and what's waiting for a human." action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => setDocxOpen(true)} className="px-4 py-3 text-xs"><Upload size={14} />Upload document (.docx / .md)</Button><Link href="/drafts/new" className="inline-flex items-center gap-2 rounded-xl bg-teal-300 px-4 py-3 text-sm font-extrabold text-slate-950 transition hover:-translate-y-1"><Plus size={16} />New draft</Link></div>} />
         {isLoading ? <LoadingCards /> : isError ? <ApiFailure error={error} retry={() => refetch()} /> : <div className="grid gap-4 md:grid-cols-4">
           <Glass className="glass-hover col-span-2 p-5 sm:p-6"><div className="flex items-center justify-between"><Eyebrow>Draft pulse</Eyebrow><Link href="/drafts" className="text-xs font-bold text-teal-600 dark:text-teal-200">All drafts <ArrowUpRight size={14} className="inline" /></Link></div><div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">{[['Draft', statusCount('Draft'), 'text-muted-foreground'], ['In review', statusCount('In review'), 'text-violet-500'], ['Changes requested', statusCount('Changes requested'), 'text-amber-600'], ['Approved', statusCount('Approved'), 'text-teal-600']].map(([label, value, color]) => <div key={String(label)} className="rounded-2xl border border-border/70 bg-background/35 p-3"><div className={`display text-3xl font-bold ${color}`}>{isLoading ? '—' : value}</div><div className="mt-1 text-[10px] leading-4 text-muted-foreground">{label}</div></div>)}</div><div className="mt-5 flex items-center gap-2 text-[11px] text-muted-foreground"><span className="h-1.5 w-1.5 rounded-full bg-teal-300" />Live from your workspace.</div></Glass>
